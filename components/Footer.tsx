@@ -18,28 +18,19 @@ export default function Footer() {
           {/* Column 1: Brand */}
           <Grid item xs={12} md={3}>
             <Box sx={{ mb: 3 }}>
-              <Box
-                sx={{
-                  width: 160,
-                  height: 60,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  bgcolor: "#111",
-                  borderRadius: 1,
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontFamily: "Bebas Neue, cursive",
-                    fontSize: "1.8rem",
-                    color: "#39FF14",
-                    letterSpacing: "0.1em",
-                  }}
-                >
-                  LAMAH
-                </Typography>
-              </Box>
+              <Link href="/" passHref>
+                <Box sx={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                  <Image
+                    src="/images/lamahhlogo.png"
+                    alt="Lamah Clothing Co."
+                    width={80}
+                    height={32}
+                    style={{
+                      objectFit: "contain",
+                    }}
+                  />
+                </Box>
+              </Link>
             </Box>
             <Typography variant="body2" sx={{ color: "#A0A0A0", mb: 3 }}>
               Every piece we design carries a purpose. Wear the mindset. Live the movement.

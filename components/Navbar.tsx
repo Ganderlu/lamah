@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useCartStore } from "@/lib/store/cart";
 
 const navLinks = [
   { name: "Home", href: "/" },
@@ -33,8 +34,6 @@ const navLinks = [
   { name: "Men", href: "/men" },
   { name: "Women", href: "/women" },
   { name: "Collections", href: "/collections" },
-  { name: "About", href: "/about" },
-  { name: "Contact", href: "/contact" },
 ];
 
 export default function Navbar() {
@@ -43,6 +42,8 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const getTotalItems = useCartStore((state) => state.getTotalItems);
+  const totalItems = getTotalItems();
 
   useEffect(() => {
     setMounted(true);
@@ -90,8 +91,8 @@ export default function Navbar() {
       <AppBar
         position="sticky"
         sx={{
-          bgcolor: scrolled ? "#050505" : "transparent",
-          boxShadow: scrolled ? "0 4px 20px rgba(0,0,0,0.5)" : "none",
+          bgcolor: "#050505",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
           transition: "all 0.3s ease",
           border: "none",
         }}
@@ -101,28 +102,16 @@ export default function Navbar() {
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <Link href="/" passHref>
               <Box sx={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                <Box
-                  sx={{
-                    width: 160,
-                    height: 60,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    bgcolor: "#111",
-                    borderRadius: 1,
+                <Image
+                  src="/images/lamahhlogo.png"
+                  alt="Lamah Clothing Co."
+                  width={80}
+                  height={32}
+                  style={{
+                    objectFit: "contain",
                   }}
-                >
-                  <Typography
-                    sx={{
-                      fontFamily: "Bebas Neue, cursive",
-                      fontSize: "1.8rem",
-                      color: "#39FF14",
-                      letterSpacing: "0.1em",
-                    }}
-                  >
-                    LAMAH
-                  </Typography>
-                </Box>
+                  priority
+                />
               </Box>
             </Link>
           </Box>
@@ -161,14 +150,28 @@ export default function Navbar() {
             <IconButton sx={{ color: "#fff" }} aria-label="account">
               <User size={20} />
             </IconButton>
-            <IconButton sx={{ color: "#fff" }} aria-label="wishlist">
-              <Heart size={20} />
-            </IconButton>
-            <IconButton sx={{ color: "#fff" }} aria-label="cart">
-              <Badge badgeContent={3} color="primary">
-                <ShoppingCart size={20} />
-              </Badge>
-            </IconButton>
+            <Link href="/wishlist" passHref>
+              <IconButton sx={{ color: "#fff" }} aria-label="wishlist">
+                <Heart size={20} />
+              </IconButton>
+            </Link>
+            <Link href="/cart" passHref>
+              <IconButton sx={{ color: "#fff" }} aria-label="cart">
+                <Badge
+                  badgeContent={totalItems}
+                  color="primary"
+                  sx={{
+                    "& .MuiBadge-badge": {
+                      bgcolor: "#39FF14",
+                      color: "#000",
+                      fontWeight: 700,
+                    },
+                  }}
+                >
+                  <ShoppingCart size={20} />
+                </Badge>
+              </IconButton>
+            </Link>
 
             {/* Mobile Menu Button */}
             {isMobile && (

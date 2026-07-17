@@ -13,14 +13,36 @@ export default function Hero() {
         display: "flex",
         alignItems: "center",
         overflow: "hidden",
+        bgcolor: "#050505",
       }}
     >
+      {/* Background Image */}
+      <Box
+        sx={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage: "url(https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=80&w=2070&auto=format&fit=crop)",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          opacity: 0.4,
+        }}
+      />
+      {/* Dark Overlay to ensure content is readable */}
+      <Box
+        sx={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "linear-gradient(to bottom, rgba(5,5,5,0.8) 0%, rgba(5,5,5,0.4) 50%, rgba(5,5,5,0.85) 100%)",
+        }}
+      />
       {/* Floating Smoke/Particle Background */}
       <Box
         sx={{
           position: "absolute",
           inset: 0,
-          background: "radial-gradient(circle at 50% 50%, rgba(57,255,20,0.05) 0%, transparent 70%)",
+          background: "radial-gradient(circle at 50% 50%, rgba(57,255,20,0.08) 0%, transparent 70%)",
           pointerEvents: "none",
         }}
       />
@@ -50,6 +72,7 @@ export default function Hero() {
                 letterSpacing: "0.3em",
                 display: "block",
                 mb: 2,
+                textShadow: "0 0 20px rgba(57,255,20,0.6)",
               }}
             >
               NEW COLLECTION
@@ -62,19 +85,21 @@ export default function Hero() {
                 lineHeight: 0.9,
                 mb: 3,
                 fontSize: { xs: "3.5rem", md: "5rem", lg: "6rem" },
+                textShadow: "0 0 30px rgba(0,0,0,0.8), 0 0 10px rgba(57,255,20,0.2)",
               }}
             >
               WE DON&apos;T SELL<br />
               CLOTHES<br />
-              <span style={{ color: "#39FF14" }}>WE CREATE MOVEMENT</span>
+              <span style={{ color: "#39FF14", textShadow: "0 0 30px rgba(57,255,20,0.8), 0 0 60px rgba(57,255,20,0.4)" }}>WE CREATE MOVEMENT</span>
             </Typography>
             <Typography
               variant="body1"
               sx={{
-                color: "#A0A0A0",
+                color: "#FFFFFF",
                 maxWidth: "500px",
                 mb: 5,
                 fontSize: "1.1rem",
+                textShadow: "0 0 15px rgba(0,0,0,0.8)",
               }}
             >
               Every piece we design carries a purpose. Wear the mindset. Live the movement.
