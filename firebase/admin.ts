@@ -4,8 +4,10 @@
  * Use environment variables on Vercel instead of a local service-account.json file.
  */
 
-import admin from "firebase-admin";
-import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { cert, getApp, getApps, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 
 const projectId = process.env.FIREBASE_PROJECT_ID;
 const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
@@ -27,8 +29,9 @@ if (!getApps().length) {
   }
 }
 
-const auth = admin.auth();
-const db = admin.firestore();
-const storage = admin.storage();
+const app = getApp();
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
 
-export { admin, auth, db, storage };
+export { app, auth, db, storage };
