@@ -25,7 +25,7 @@ export default function Hero() {
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
-          opacity: 0.4,
+          opacity: 0.3,
         }}
       />
       {/* Dark Overlay to ensure content is readable */}
@@ -34,7 +34,7 @@ export default function Hero() {
           position: "absolute",
           inset: 0,
           background:
-            "linear-gradient(to bottom, rgba(5,5,5,0.8) 0%, rgba(5,5,5,0.4) 50%, rgba(5,5,5,0.85) 100%)",
+            "linear-gradient(to right, rgba(5,5,5,0.95) 0%, rgba(5,5,5,0.8) 40%, rgba(5,5,5,0.3) 70%, rgba(5,5,5,0.7) 100%)",
         }}
       />
       {/* Floating Smoke/Particle Background */}
@@ -64,33 +64,17 @@ export default function Hero() {
             transition={{ duration: 0.8, ease: "easeOut" }}
           >
             <Typography
-              variant="overline"
-              sx={{
-                color: "#39FF14",
-                fontFamily: "Poppins, sans-serif",
-                fontWeight: 600,
-                letterSpacing: "0.3em",
-                display: "block",
-                mb: 2,
-                textShadow: "0 0 20px rgba(57,255,20,0.6)",
-              }}
-            >
-              NEW COLLECTION
-            </Typography>
-            <Typography
               variant="h1"
               sx={{
-                color: "#fff",
+                color: "#39FF14",
                 fontFamily: "Bebas Neue, cursive",
-                lineHeight: 0.9,
+                lineHeight: 1,
                 mb: 3,
-                fontSize: { xs: "3.5rem", md: "5rem", lg: "6rem" },
-                textShadow: "0 0 30px rgba(0,0,0,0.8), 0 0 10px rgba(57,255,20,0.2)",
+                fontSize: { xs: "4rem", md: "6rem", lg: "7rem" },
+                textShadow: "0 0 40px rgba(57,255,20,0.8), 0 0 80px rgba(57,255,20,0.4)",
               }}
             >
-              WE DON&apos;T SELL<br />
-              CLOTHES<br />
-              <span style={{ color: "#39FF14", textShadow: "0 0 30px rgba(57,255,20,0.8), 0 0 60px rgba(57,255,20,0.4)" }}>WE CREATE MOVEMENT</span>
+              WE CREATE MOVEMENT
             </Typography>
             <Typography
               variant="body1"
