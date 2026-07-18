@@ -1,16 +1,29 @@
 
 /**
  * Firebase Admin SDK
- * NOTE: Never commit your service-account.json to GitHub! It's already in .gitignore!
+ * Use environment variables on Vercel instead of a local service-account.json file.
  */
 
 import admin from "firebase-admin";
-import serviceAccount from "./service-account.json";
+
+const projectId = process.env.FIREBASE_PROJECT_ID;
+const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
 
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-  });
+  if (projectId && clientEmail && privateKey) {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId,
+        clientEmail,
+        privateKey,
+      }),
+      ...(storageBucket ? { storageBucket } : {}),
+    });
+  } else {
+    admin.initializeApp();
+  }
 }
 
 const auth = admin.auth();
