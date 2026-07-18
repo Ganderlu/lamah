@@ -34,7 +34,7 @@ export default function Hero() {
           position: "absolute",
           inset: 0,
           background:
-            "linear-gradient(to right, rgba(5,5,5,0.95) 0%, rgba(5,5,5,0.8) 40%, rgba(5,5,5,0.3) 70%, rgba(5,5,5,0.7) 100%)",
+            "linear-gradient(to right, rgba(5,5,5,1) 0%, rgba(5,5,5,0.95) 30%, rgba(5,5,5,0.8) 50%, rgba(5,5,5,0.3) 70%, rgba(5,5,5,0.7) 100%)",
         }}
       />
       {/* Floating Smoke/Particle Background */}
@@ -47,7 +47,7 @@ export default function Hero() {
         }}
       />
 
-      <Container maxWidth="xl">
+      <Container maxWidth="xl" sx={{ position: "relative", zIndex: 10 }}>
         <Box
           sx={{
             display: "grid",
