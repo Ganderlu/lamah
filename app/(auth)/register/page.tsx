@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { useForm, Controller } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
@@ -26,18 +26,35 @@ import {
   signInWithPopup,
   updateProfile,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  query,
+  setDoc,
+  where,
+} from 'firebase/firestore';
 import Image from 'next/image';
 
-import SocialLoginButtons from '@/components/auth/SocialLoginButtons';
 import PasswordInput from '@/components/auth/PasswordInput';
+import SocialLoginButtons from '@/components/auth/SocialLoginButtons';
 import { auth, db } from '@/firebase/client';
-import { User, Phone, Globe } from 'lucide-react';
+import { useAuthStore, type AuthUserProfile } from '@/lib/store/auth';
+import { Globe, Phone, User } from 'lucide-react';
 
 const registerSchema = z
   .object({
     firstName: z.string().min(1, 'First name is required'),
     lastName: z.string().min(1, 'Last name is required'),
+    username: z
+      .string()
+      .min(3, 'Username must be at least 3 characters')
+      .regex(
+        /^[a-zA-Z0-9._-]+$/,
+        'Username can only contain letters, numbers, dots, hyphens and underscores'
+      ),
     email: z.string().email('Please enter a valid email'),
     password: z.string().min(6, 'Password must be at least 6 characters'),
     confirmPassword: z.string().min(1, 'Please confirm your password'),
@@ -52,6 +69,25 @@ const registerSchema = z
   });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
+
+const normalizeUsername = (value: string) =>
+  value.trim().toLowerCase().replace(/\s+/g, '');
+
+const mapProfile = (uid: string, data: Record<string, unknown>): AuthUserProfile => ({
+  uid,
+  firstName: String(data.firstName ?? ''),
+  lastName: String(data.lastName ?? ''),
+  username: String(data.username ?? ''),
+  email: String(data.email ?? ''),
+  phone: String(data.phone ?? ''),
+  country: String(data.country ?? ''),
+  gender: String(data.gender ?? ''),
+  photoURL: String(data.photoURL ?? ''),
+  role: String(data.role ?? 'customer'),
+  status: String(data.status ?? 'active'),
+  rewardPoints: Number(data.rewardPoints ?? 0),
+  membershipLevel: String(data.membershipLevel ?? 'Silver Member'),
+});
 
 const countries = [
   'United States',
@@ -68,6 +104,7 @@ const countries = [
 
 export default function RegisterPage() {
   const router = useRouter();
+  const setProfile = useAuthStore((state) => state.setProfile);
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
@@ -84,6 +121,7 @@ export default function RegisterPage() {
     defaultValues: {
       firstName: '',
       lastName: '',
+      username: '',
       email: '',
       password: '',
       confirmPassword: '',
@@ -97,6 +135,18 @@ export default function RegisterPage() {
   const handleRegister = async (data: RegisterFormValues) => {
     setLoading(true);
     try {
+      const normalizedUsername = normalizeUsername(data.username);
+      const existingUsernameQuery = query(
+        collection(db, 'users'),
+        where('username', '==', normalizedUsername),
+        limit(1)
+      );
+      const existingUsernameSnapshot = await getDocs(existingUsernameQuery);
+
+      if (!existingUsernameSnapshot.empty) {
+        throw new Error('That username is already taken.');
+      }
+
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       const user = userCredential.user;
 
@@ -104,30 +154,40 @@ export default function RegisterPage() {
         displayName: `${data.firstName} ${data.lastName}`,
       });
 
-      await setDoc(doc(db, 'users', user.uid), {
+      const profile: AuthUserProfile = {
         uid: user.uid,
         firstName: data.firstName,
         lastName: data.lastName,
+        username: normalizedUsername,
         email: data.email,
-        phone: data.phone,
-        country: data.country,
-        gender: data.gender,
+        phone: data.phone ?? '',
+        country: data.country ?? '',
+        gender: data.gender ?? '',
+        photoURL: user.photoURL ?? '',
         role: 'customer',
         status: 'active',
+        rewardPoints: 0,
+        membershipLevel: 'Silver Member',
+      };
+
+      await setDoc(doc(db, 'users', user.uid), {
+        ...profile,
         wishlist: [],
         cart: [],
         addresses: [],
         orders: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       });
+
+      setProfile(profile);
 
       setSnackbar({
         open: true,
         message: 'Registration successful! Welcome to Lamah.',
         severity: 'success',
       });
-      router.push('/');
+      router.push('/dashboard/orders');
     } catch (error: any) {
       setSnackbar({
         open: true,
@@ -147,29 +207,43 @@ export default function RegisterPage() {
       const user = result.user;
       const userDocRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
+      const displayNameParts = user.displayName?.trim().split(/\s+/) ?? [];
+      const profilePayload = {
+        uid: user.uid,
+        firstName: displayNameParts[0] ?? '',
+        lastName: displayNameParts.slice(1).join(' '),
+        username: normalizeUsername(user.email?.split('@')[0] ?? user.uid),
+        email: user.email ?? '',
+        phone: '',
+        country: '',
+        gender: '',
+        photoURL: user.photoURL ?? '',
+        role: 'customer',
+        status: 'active',
+        rewardPoints: 0,
+        membershipLevel: 'Silver Member',
+      };
+
       if (!userDoc.exists()) {
         await setDoc(userDocRef, {
-          uid: user.uid,
-          email: user.email,
-          firstName: user.displayName?.split(' ')[0] || '',
-          lastName: user.displayName?.split(' ')[1] || '',
-          photoURL: user.photoURL,
-          role: 'customer',
-          status: 'active',
+          ...profilePayload,
           wishlist: [],
           cart: [],
           addresses: [],
           orders: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         });
+        setProfile(profilePayload);
+      } else {
+        setProfile(mapProfile(user.uid, userDoc.data()));
       }
       setSnackbar({
         open: true,
         message: 'Login successful! Welcome.',
         severity: 'success',
       });
-      router.push('/');
+      router.push('/dashboard/orders');
     } catch (error: any) {
       setSnackbar({
         open: true,
@@ -314,6 +388,34 @@ export default function RegisterPage() {
                 )}
               />
             </Stack>
+
+            <Controller
+              name="username"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  label="Username"
+                  variant="outlined"
+                  error={!!errors.username}
+                  helperText={errors.username?.message}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      background: '#050505',
+                      borderRadius: 2,
+                    },
+                  }}
+                  InputProps={{
+                    startAdornment: (
+                      <Box component="span" sx={{ mr: 1, color: '#39FF14' }}>
+                        <User size={20} />
+                      </Box>
+                    ),
+                  }}
+                />
+              )}
+            />
 
             <Controller
               name="email"

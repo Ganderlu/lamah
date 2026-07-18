@@ -16,32 +16,68 @@ import {
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { useForm, Controller } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
-  signInWithEmailAndPassword,
-  sendPasswordResetEmail,
+  browserLocalPersistence,
+  browserSessionPersistence,
   GoogleAuthProvider,
+  sendPasswordResetEmail,
+  setPersistence,
+  signInWithEmailAndPassword,
   signInWithPopup,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  query,
+  setDoc,
+  where,
+} from 'firebase/firestore';
 import Image from 'next/image';
 
-import SocialLoginButtons from '@/components/auth/SocialLoginButtons';
 import PasswordInput from '@/components/auth/PasswordInput';
+import SocialLoginButtons from '@/components/auth/SocialLoginButtons';
 import { auth, db } from '@/firebase/client';
-import { Mail, Lock, MessageSquare } from 'lucide-react';
+import { useAuthStore, type AuthUserProfile } from '@/lib/store/auth';
+import { Mail, MessageSquare } from 'lucide-react';
 
 const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email'),
+  identifier: z.string().min(1, 'Enter your email address or username'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
+  rememberMe: z.boolean(),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+const normalizeUsername = (value: string) =>
+  value.trim().toLowerCase().replace(/\s+/g, '');
+
+const isEmailAddress = (value: string) => /\S+@\S+\.\S+/.test(value);
+
+const mapProfile = (uid: string, data: Record<string, unknown>): AuthUserProfile => ({
+  uid,
+  firstName: String(data.firstName ?? ''),
+  lastName: String(data.lastName ?? ''),
+  username: String(data.username ?? ''),
+  email: String(data.email ?? ''),
+  phone: String(data.phone ?? ''),
+  country: String(data.country ?? ''),
+  gender: String(data.gender ?? ''),
+  photoURL: String(data.photoURL ?? ''),
+  role: String(data.role ?? 'customer'),
+  status: String(data.status ?? 'active'),
+  rewardPoints: Number(data.rewardPoints ?? 0),
+  membershipLevel: String(data.membershipLevel ?? 'Silver Member'),
+});
+
 export default function LoginPage() {
   const router = useRouter();
+  const setProfile = useAuthStore((state) => state.setProfile);
   const [loading, setLoading] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -58,21 +94,102 @@ export default function LoginPage() {
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: '',
+      identifier: '',
       password: '',
+      rememberMe: true,
     },
   });
+
+  const resolveEmailFromIdentifier = async (identifier: string) => {
+    const trimmedIdentifier = identifier.trim();
+
+    if (isEmailAddress(trimmedIdentifier)) {
+      return trimmedIdentifier;
+    }
+
+    const usernameQuery = query(
+      collection(db, 'users'),
+      where('username', '==', normalizeUsername(trimmedIdentifier)),
+      limit(1)
+    );
+    const usernameSnapshot = await getDocs(usernameQuery);
+
+    if (usernameSnapshot.empty) {
+      throw new Error('No account found for that username.');
+    }
+
+    return String(usernameSnapshot.docs[0].data().email ?? '');
+  };
+
+  const syncUserProfile = async (
+    uid: string,
+    fallback: Partial<AuthUserProfile> = {}
+  ) => {
+    const userDocRef = doc(db, 'users', uid);
+    const userDoc = await getDoc(userDocRef);
+
+    if (userDoc.exists()) {
+      const profile = mapProfile(uid, userDoc.data());
+      setProfile(profile);
+      return profile;
+    }
+
+    const profile: AuthUserProfile = {
+      uid,
+      firstName: fallback.firstName ?? '',
+      lastName: fallback.lastName ?? '',
+      username: fallback.username ?? '',
+      email: fallback.email ?? '',
+      phone: fallback.phone ?? '',
+      country: fallback.country ?? '',
+      gender: fallback.gender ?? '',
+      photoURL: fallback.photoURL ?? '',
+      role: 'customer',
+      status: 'active',
+      rewardPoints: 0,
+      membershipLevel: 'Silver Member',
+    };
+
+    await setDoc(userDocRef, {
+      ...profile,
+      wishlist: [],
+      cart: [],
+      addresses: [],
+      orders: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    setProfile(profile);
+    return profile;
+  };
 
   const handleLogin = async (data: LoginFormValues) => {
     setLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+      await setPersistence(
+        auth,
+        data.rememberMe ? browserLocalPersistence : browserSessionPersistence
+      );
+
+      const email = await resolveEmailFromIdentifier(data.identifier);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        data.password
+      );
+
+      await syncUserProfile(userCredential.user.uid, {
+        email: userCredential.user.email ?? email,
+        photoURL: userCredential.user.photoURL ?? '',
+      });
+
       setSnackbar({
         open: true,
         message: 'Login successful! Welcome back.',
         severity: 'success',
       });
-      router.push('/');
+      router.push('/dashboard/orders');
     } catch (error: any) {
       setSnackbar({
         open: true,
@@ -90,31 +207,22 @@ export default function LoginPage() {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
-      if (!userDoc.exists()) {
-        await setDoc(userDocRef, {
-          uid: user.uid,
-          email: user.email,
-          firstName: user.displayName?.split(' ')[0] || '',
-          lastName: user.displayName?.split(' ')[1] || '',
-          photoURL: user.photoURL,
-          role: 'customer',
-          status: 'active',
-          wishlist: [],
-          cart: [],
-          addresses: [],
-          orders: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-      }
+      const displayNameParts = user.displayName?.trim().split(/\s+/) ?? [];
+
+      await syncUserProfile(user.uid, {
+        firstName: displayNameParts[0] ?? '',
+        lastName: displayNameParts.slice(1).join(' '),
+        username: normalizeUsername(user.email?.split('@')[0] ?? user.uid),
+        email: user.email ?? '',
+        photoURL: user.photoURL ?? '',
+      });
+
       setSnackbar({
         open: true,
         message: 'Login successful! Welcome back.',
         severity: 'success',
       });
-      router.push('/');
+      router.push('/dashboard/orders');
     } catch (error: any) {
       setSnackbar({
         open: true,
@@ -127,10 +235,18 @@ export default function LoginPage() {
   };
 
   const handleForgotPassword = async () => {
-    if (!forgotEmail) return;
+    if (!forgotEmail.trim()) {
+      setSnackbar({
+        open: true,
+        message: 'Enter your email address first.',
+        severity: 'error',
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      await sendPasswordResetEmail(auth, forgotEmail);
+      await sendPasswordResetEmail(auth, forgotEmail.trim());
       setSnackbar({
         open: true,
         message: 'Password reset email sent! Check your inbox.',
@@ -234,17 +350,17 @@ export default function LoginPage() {
 
               <Stack spacing={3} component="form" onSubmit={handleSubmit(handleLogin)}>
                 <Controller
-                  name="email"
+                  name="identifier"
                   control={control}
                   render={({ field }) => (
                     <TextField
                       {...field}
                       fullWidth
-                      label="Email Address"
+                      label="Email Address or Username"
                       variant="outlined"
-                      error={!!errors.email}
-                      helperText={errors.email?.message}
-                      placeholder="Enter your email address"
+                      error={!!errors.identifier}
+                      helperText={errors.identifier?.message}
+                      placeholder="Enter your email address or username"
                       InputProps={{
                         startAdornment: (
                           <Box component="span" sx={{ mr: 1, color: '#39FF14' }}>
@@ -280,10 +396,22 @@ export default function LoginPage() {
                   justifyContent="space-between"
                   alignItems="center"
                 >
-                  <FormControlLabel
-                    control={<Checkbox sx={{ color: '#39FF14' }} />}
-                    label="Remember me"
-                    sx={{ color: '#A0A0A0' }}
+                  <Controller
+                    name="rememberMe"
+                    control={control}
+                    render={({ field }) => (
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={field.value}
+                            onChange={(event) => field.onChange(event.target.checked)}
+                            sx={{ color: '#39FF14' }}
+                          />
+                        }
+                        label="Remember me"
+                        sx={{ color: '#A0A0A0' }}
+                      />
+                    )}
                   />
                   <Link
                     component="button"
