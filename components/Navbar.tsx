@@ -101,14 +101,14 @@ export default function Navbar() {
           {/* Left: Logo */}
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <Link href="/" passHref>
-              <Box sx={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+              <Box sx={{ display: "flex", alignItems: "center", cursor: "pointer", borderRadius: "50%", overflow: "hidden" }}>
                 <Image
                   src="/images/lamahhlogo.png"
                   alt="Lamah Clothing Co."
                   width={80}
-                  height={32}
+                  height={80}
                   style={{
-                    objectFit: "contain",
+                    objectFit: "cover",
                   }}
                   priority
                 />
