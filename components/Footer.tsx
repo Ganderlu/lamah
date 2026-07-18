@@ -19,14 +19,14 @@ export default function Footer() {
           <Grid item xs={12} md={3}>
             <Box sx={{ mb: 3 }}>
               <Link href="/" passHref>
-                <Box sx={{ display: "flex", alignItems: "center", cursor: "pointer", borderRadius: "50%", overflow: "hidden" }}>
+                <Box sx={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
                   <Image
                     src="/images/lamahhlogo.png"
                     alt="Lamah Clothing Co."
                     width={80}
-                    height={80}
+                    height={32}
                     style={{
-                      objectFit: "cover",
+                      objectFit: "contain",
                     }}
                   />
                 </Box>

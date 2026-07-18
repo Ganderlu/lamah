@@ -91,24 +91,24 @@ export default function Navbar() {
       <AppBar
         position="sticky"
         sx={{
-          bgcolor: "#050505",
+          bgcolor: "#000000",
           boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
           transition: "all 0.3s ease",
           border: "none",
         }}
       >
-        <Toolbar sx={{ justifyContent: "space-between", py: 1 }}>
+        <Toolbar sx={{ justifyContent: "space-between", py: 1, bgcolor: "#000000" }}>
           {/* Left: Logo */}
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <Link href="/" passHref>
-              <Box sx={{ display: "flex", alignItems: "center", cursor: "pointer", borderRadius: "50%", overflow: "hidden" }}>
+              <Box sx={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
                 <Image
                   src="/images/lamahhlogo.png"
                   alt="Lamah Clothing Co."
-                  width={80}
-                  height={80}
+                  width={120}
+                  height={48}
                   style={{
-                    objectFit: "cover",
+                    objectFit: "contain",
                   }}
                   priority
                 />
@@ -147,9 +147,11 @@ export default function Navbar() {
             <IconButton sx={{ color: "#fff" }} aria-label="search">
               <Search size={20} />
             </IconButton>
-            <IconButton sx={{ color: "#fff" }} aria-label="account">
-              <User size={20} />
-            </IconButton>
+            <Link href="/login" passHref>
+              <IconButton sx={{ color: "#fff" }} aria-label="account">
+                <User size={20} />
+              </IconButton>
+            </Link>
             <Link href="/wishlist" passHref>
               <IconButton sx={{ color: "#fff" }} aria-label="wishlist">
                 <Heart size={20} />
