@@ -26,7 +26,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/store/auth";
 import { auth } from "@/firebase/client";
 import Link from "next/link";
@@ -35,6 +35,8 @@ export default function UserTopNavbar() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const router = useRouter();
+  const pathname = usePathname();
+  const isOrdersPage = pathname === "/dashboard/orders";
   const profile = useAuthStore((state) => state.profile);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const displayName =
@@ -71,33 +73,37 @@ export default function UserTopNavbar() {
             gap: 1.5,
           }}
         >
-          <IconButton
-            aria-label="Go back"
-            onClick={() => router.back()}
-            sx={{
-              color: "#fff",
-              border: "1px solid rgba(57,255,20,0.14)",
-              bgcolor: "#111111",
-              width: 42,
-              height: 42,
-              "&:hover": {
-                bgcolor: "rgba(57,255,20,0.06)",
-                borderColor: "rgba(57,255,20,0.3)",
-              },
-            }}
-          >
-            <ArrowLeft size={18} />
-          </IconButton>
-          {!isMobile && (
-            <Typography
-              variant="body2"
-              sx={{
-                color: "#A0A0A0",
-                fontFamily: "Poppins, sans-serif",
-              }}
-            >
-              My Orders
-            </Typography>
+          {!isOrdersPage && (
+            <>
+              <IconButton
+                aria-label="Go back"
+                onClick={() => router.back()}
+                sx={{
+                  color: "#fff",
+                  border: "1px solid rgba(57,255,20,0.14)",
+                  bgcolor: "#111111",
+                  width: 42,
+                  height: 42,
+                  "&:hover": {
+                    bgcolor: "rgba(57,255,20,0.06)",
+                    borderColor: "rgba(57,255,20,0.3)",
+                  },
+                }}
+              >
+                <ArrowLeft size={18} />
+              </IconButton>
+              {!isMobile && (
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "#A0A0A0",
+                    fontFamily: "Poppins, sans-serif",
+                  }}
+                >
+                  My Orders
+                </Typography>
+              )}
+            </>
           )}
         </Box>
 

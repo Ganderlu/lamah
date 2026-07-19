@@ -20,6 +20,7 @@ import {
   LayoutDashboard,
   ShoppingCart,
   Package,
+  Sparkles,
   Layers,
   Boxes,
   Users,
@@ -43,6 +44,7 @@ const menuItems = [
   { name: "Dashboard", icon: LayoutDashboard, href: "/admin" },
   { name: "Orders", icon: ShoppingCart, href: "/admin/orders" },
   { name: "Products", icon: Package, href: "/admin/products" },
+  { name: "New Arrivals", icon: Sparkles, href: "/admin/new-arrivals" },
   { name: "Categories", icon: Layers, href: "/admin/categories" },
   { name: "Inventory", icon: Boxes, href: "/admin/inventory" },
   { name: "Collections", icon: Star, href: "/admin/collections" },
@@ -168,9 +170,20 @@ export default function AdminSidebar({
                     borderRadius: 2,
                     px: 2,
                     py: 1.5,
+                    position: "relative",
                     ...(isActive && {
                       bgcolor: "#39FF14",
                       boxShadow: "0 0 30px rgba(57,255,20,0.3)",
+                      "&::before": {
+                        content: '""',
+                        position: "absolute",
+                        left: 8,
+                        top: 8,
+                        bottom: 8,
+                        width: 4,
+                        borderRadius: 999,
+                        bgcolor: "#000",
+                      },
                       "&:hover": {
                         bgcolor: "#2dd610",
                       },
@@ -203,45 +216,66 @@ export default function AdminSidebar({
         })}
       </List>
 
-      {/* Footer for Sidebar */}
+      {/* Support Card */}
       <Box sx={{ p: 3, borderTop: "1px solid rgba(57,255,20,0.1)" }}>
-        <Link href="/" passHref>
-          <Box
+        <Box
+          sx={{
+            p: 2.5,
+            borderRadius: 3,
+            bgcolor: "#111111",
+            border: "1px solid rgba(57,255,20,0.12)",
+            boxShadow: "0 0 24px rgba(57,255,20,0.04)",
+          }}
+        >
+          <Typography
             sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 1,
-              cursor: "pointer",
-              py: 2,
+              color: "#fff",
+              fontWeight: 700,
+              fontFamily: "Poppins, sans-serif",
+              mb: 0.75,
+            }}
+          >
+            Need Help?
+          </Typography>
+          <Typography
+            variant="caption"
+            sx={{
+              color: "#9E9E9E",
+              fontFamily: "Poppins, sans-serif",
+              lineHeight: 1.6,
+              display: "block",
+              mb: 2,
+            }}
+          >
+            Our support team is here to help you.
+          </Typography>
+          <ListItemButton
+            component={Link}
+            href="/contact"
+            sx={{
               borderRadius: 2,
+              py: 1.25,
+              px: 1.5,
+              bgcolor: "rgba(57,255,20,0.1)",
+              border: "1px solid rgba(57,255,20,0.2)",
               "&:hover": {
-                bgcolor: "rgba(57,255,20,0.05)",
+                bgcolor: "rgba(57,255,20,0.16)",
               },
             }}
           >
-            <Image
-              src="/images/lamahwhiteb.png"
-              alt="The Lamah Movement"
-              width={180}
-              height={180}
-              style={{
-                objectFit: "cover",
-                borderRadius: 8,
+            <ListItemText
+              primary="Contact Support"
+              sx={{
+                "& .MuiListItemText-primary": {
+                  color: "#39FF14",
+                  fontFamily: "Poppins, sans-serif",
+                  fontWeight: 600,
+                  fontSize: "0.875rem",
+                },
               }}
             />
-            <Typography
-              variant="caption"
-              sx={{
-                color: "#9E9E9E",
-                fontFamily: "Poppins, sans-serif",
-                textAlign: "center",
-              }}
-            >
-              Designed to inspire.
-            </Typography>
-          </Box>
-        </Link>
+          </ListItemButton>
+        </Box>
       </Box>
     </Box>
   );

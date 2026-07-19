@@ -37,6 +37,9 @@ export default function AdminLayout({
               bgcolor: "#050505",
               p: { xs: 2, lg: 4 },
               overflowY: "auto",
+              width: "100%",
+              maxWidth: "100vw",
+              overflowX: "hidden",
             }}
           >
             {children}

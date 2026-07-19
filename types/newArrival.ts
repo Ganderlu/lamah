@@ -1,0 +1,23 @@
+export type NewArrival = {
+  id?: string;
+  productName: string;
+  sku: string;
+  category: string;
+  collection?: string;
+  price: number;
+  discountPrice?: number;
+  stock: number;
+  status: "Active" | "Draft" | "Inactive";
+  featured: boolean;
+  newArrival: boolean;
+  thumbnail?: string;
+  gallery?: string[];
+  views: number;
+  orders: number;
+  createdAt: string;
+  updatedAt?: string;
+  sizes?: string[];
+  colors?: string[];
+  tags?: string[];
+  description?: string;
+};

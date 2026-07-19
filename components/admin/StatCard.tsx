@@ -11,6 +11,7 @@ interface StatCardProps {
   icon: LucideIcon;
   change: number;
   changeLabel: string;
+  showPercent?: boolean;
 }
 
 export default function StatCard({
@@ -19,6 +20,7 @@ export default function StatCard({
   icon: Icon,
   change,
   changeLabel,
+  showPercent = true,
 }: StatCardProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -83,7 +85,7 @@ export default function StatCard({
                     alignItems: "center",
                   }}
                 >
-                  {isPositive ? "↑" : "↓"} {Math.abs(change)}%
+                  {isPositive ? "↑" : "↓"} {Math.abs(change)}{showPercent ? "%" : ""}
                 </Typography>
                 <Typography
                   variant="caption"

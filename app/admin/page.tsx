@@ -18,6 +18,7 @@ import {
   Chip,
   Button,
   Paper,
+  CircularProgress,
 } from "@mui/material";
 import {
   DollarSign,
@@ -32,58 +33,19 @@ import {
   Plus,
   RefreshCw,
   MessageSquare,
+  Tags,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import StatCard from "@/components/admin/StatCard";
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { fetchCategories } from "@/lib/categories";
+import { fetchNewArrivals } from "@/lib/newArrivals";
+import type { Category } from "@/types/category";
+import type { NewArrival } from "@/types/newArrival";
 
-// Sample data
-const stats = [
-  {
-    title: "Total Revenue",
-    value: "$2,456,000",
-    icon: DollarSign,
-    change: 18.5,
-    changeLabel: "vs last week",
-  },
-  {
-    title: "Total Orders",
-    value: "1,248",
-    icon: ShoppingCart,
-    change: 12.3,
-    changeLabel: "vs last week",
-  },
-  {
-    title: "Customers",
-    value: "4,326",
-    icon: Users,
-    change: 20.8,
-    changeLabel: "vs last week",
-  },
-  {
-    title: "Total Products",
-    value: "256",
-    icon: Package,
-    change: 8.5,
-    changeLabel: "vs last week",
-  },
-  {
-    title: "Conversion Rate",
-    value: "3.65%",
-    icon: TrendingUp,
-    change: 11.2,
-    changeLabel: "vs last week",
-  },
-  {
-    title: "Average Order Value",
-    value: "$196.80",
-    icon: DollarSign,
-    change: 5.4,
-    changeLabel: "vs last week",
-  },
-];
-
+// Sample data for other sections that don't have real data yet
 const recentOrders = [
   {
     id: "#LO8721",
@@ -115,93 +77,6 @@ const recentOrders = [
     payment: "Pending",
     status: "Shipped",
   },
-  {
-    id: "#LO8718",
-    customer: "Jessica Miller",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=64&auto=format&fit=crop&q=60",
-    products: "Classic Hoodie, Graphic Tee, Track Pants",
-    date: "May 20, 2024",
-    amount: "$336.97",
-    payment: "Paid",
-    status: "Delivered",
-  },
-  {
-    id: "#LO8717",
-    customer: "Daniel Wilson",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64&auto=format&fit=crop&q=60",
-    products: "Signature Cap",
-    date: "May 19, 2024",
-    amount: "$39.99",
-    payment: "Paid",
-    status: "Delivered",
-  },
-];
-
-const topProducts = [
-  {
-    id: "1",
-    name: "Lamah Signature Hoodie",
-    image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=120&auto=format&fit=crop&q=60",
-    unitsSold: "248",
-    price: "$129.99",
-    revenue: "$32,237.52",
-  },
-  {
-    id: "2",
-    name: "Oversized Tee",
-    image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=120&auto=format&fit=crop&q=60",
-    unitsSold: "189",
-    price: "$59.99",
-    revenue: "$11,338.11",
-  },
-  {
-    id: "3",
-    name: "Cargo Pants",
-    image: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=120&auto=format&fit=crop&q=60",
-    unitsSold: "156",
-    price: "$149.99",
-    revenue: "$23,398.44",
-  },
-  {
-    id: "4",
-    name: "Classic Hoodie",
-    image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=120&auto=format&fit=crop&q=60",
-    unitsSold: "145",
-    price: "$119.99",
-    revenue: "$17,398.55",
-  },
-  {
-    id: "5",
-    name: "Street Jacket",
-    image: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=120&auto=format&fit=crop&q=60",
-    unitsSold: "128",
-    price: "$199.99",
-    revenue: "$25,598.72",
-  },
-];
-
-const lowStockProducts = [
-  {
-    id: "1",
-    name: "Lamah Hoodie - Black",
-    image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=120&auto=format&fit=crop&q=60",
-    stock: "8",
-    status: "Low Stock",
-  },
-  {
-    id: "2",
-    name: "Cargo Pants - Grey",
-    image: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=120&auto=format&fit=crop&q=60",
-    stock: "5",
-    status: "Critical",
-  },
-  {
-    id: "3",
-    name: "Lamah Classic Cap - Green",
-    image: "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=120&auto=format&fit=crop&q=60",
-    stock: "7",
-    status: "Low Stock",
-  },
 ];
 
 const customerActivity = [
@@ -220,16 +95,6 @@ const customerActivity = [
     user: "Olivia Martinez",
     time: "28 min ago",
   },
-  {
-    type: "Wishlist",
-    user: "Lucas Thompson",
-    time: "45 min ago",
-  },
-  {
-    type: "Newsletter Signup",
-    user: "Sophia White",
-    time: "1 hour ago",
-  },
 ];
 
 const latestReviews = [
@@ -242,27 +107,77 @@ const latestReviews = [
     review: "Amazing quality! The hoodie is super comfortable and fits perfectly. Definitely worth the price.",
     date: "May 20, 2024",
   },
-  {
-    user: "Kevin Lee",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=64&auto=format&fit=crop&q=60",
-    product: "Oversized Tee",
-    productImage: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=64&auto=format&fit=crop&q=60",
-    rating: 4,
-    review: "Great fit and material. Would love to see more colors available.",
-    date: "May 19, 2024",
-  },
-  {
-    user: "Natalie Davis",
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=64&auto=format&fit=crop&q=60",
-    product: "Cargo Pants",
-    productImage: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=64&auto=format&fit=crop&q=60",
-    rating: 5,
-    review: "Top notch quality! Will definitely order again!",
-    date: "May 18, 2024",
-  },
 ];
 
 export default function AdminDashboardPage() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [newArrivals, setNewArrivals] = useState<NewArrival[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [cats, arrivals] = await Promise.all([
+          fetchCategories(),
+          fetchNewArrivals(),
+        ]);
+        setCategories(cats);
+        setNewArrivals(arrivals);
+      } catch (error) {
+        console.error("Error loading dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // Calculate stats
+  const totalCategories = categories.length;
+  const activeCategories = categories.filter(c => c.status === "Active").length;
+  const totalNewArrivals = newArrivals.length;
+  const activeNewArrivals = newArrivals.filter(a => a.status === "Active").length;
+  const featuredNewArrivals = newArrivals.filter(a => a.featured).length;
+
+  // Create dynamic stats array
+  const stats = [
+    {
+      title: "Total Categories",
+      value: totalCategories.toString(),
+      icon: Tags,
+      change: activeCategories,
+      changeLabel: "Active",
+      showPercent: false,
+    },
+    {
+      title: "New Arrivals",
+      value: totalNewArrivals.toString(),
+      icon: Package,
+      change: activeNewArrivals,
+      changeLabel: "Active",
+      showPercent: false,
+    },
+    {
+      title: "Featured Products",
+      value: featuredNewArrivals.toString(),
+      icon: TrendingUp,
+      change: 0,
+      changeLabel: "vs last week",
+      showPercent: true,
+    },
+  ];
+
+  // Top products (use new arrivals sorted by views or orders)
+  const topProducts = [...newArrivals]
+    .sort((a, b) => (b.orders || 0) - (a.orders || 0))
+    .slice(0, 5);
+
+  // Low stock products (use new arrivals with stock < 10)
+  const lowStockProducts = [...newArrivals]
+    .filter(p => p.stock < 10)
+    .slice(0, 3);
+
   return (
     <Box sx={{ maxWidth: "1800px", mx: "auto", width: "100%" }}>
       {/* Welcome Section */}
@@ -296,13 +211,19 @@ export default function AdminDashboardPage() {
       </motion.div>
 
       {/* Statistics Cards */}
-      <Grid container spacing={3} sx={{ mb: 6 }}>
-        {stats.map((stat, index) => (
-          <Grid item xs={12} sm={6} md={4} lg={2} key={index}>
-            <StatCard {...stat} />
-          </Grid>
-        ))}
-      </Grid>
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+          <CircularProgress sx={{ color: "#39FF14" }} />
+        </Box>
+      ) : (
+        <Grid container spacing={3} sx={{ mb: 6 }}>
+          {stats.map((stat, index) => (
+            <Grid item xs={12} sm={6} md={4} lg={4} key={index}>
+              <StatCard {...stat} />
+            </Grid>
+          ))}
+        </Grid>
+      )}
 
       {/* Main Grid */}
       <Grid container spacing={3}>
@@ -676,62 +597,78 @@ export default function AdminDashboardPage() {
                     </Button>
                   </Link>
                 </Box>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {topProducts.map((product) => (
-                    <Box
-                      key={product.id}
-                      sx={{
-                        display: "flex",
-                        gap: 2,
-                        alignItems: "center",
-                      }}
-                    >
+                {loading ? (
+                  <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                    <CircularProgress sx={{ color: "#39FF14" }} />
+                  </Box>
+                ) : topProducts.length === 0 ? (
+                  <Typography sx={{ color: "#9E9E9E", textAlign: "center", py: 4 }}>
+                    No new arrivals yet
+                  </Typography>
+                ) : (
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    {topProducts.map((product) => (
                       <Box
+                        key={product.id}
                         sx={{
-                          width: 60,
-                          height: 60,
-                          borderRadius: 1.5,
-                          overflow: "hidden",
-                          flexShrink: 0,
+                          display: "flex",
+                          gap: 2,
+                          alignItems: "center",
                         }}
                       >
-                        <Image
-                          src={product.image}
-                          alt={product.name}
-                          width={60}
-                          height={60}
-                          style={{ objectFit: "cover" }}
-                        />
-                      </Box>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography
-                          sx={{
-                            color: "#fff",
-                            fontWeight: 500,
-                            mb: 0.5,
-                          }}
-                        >
-                          {product.name}
-                        </Typography>
                         <Box
                           sx={{
-                            display: "flex",
-                            gap: 2,
-                            color: "#9E9E9E",
-                            fontSize: "0.75rem",
+                            width: 60,
+                            height: 60,
+                            borderRadius: 1.5,
+                            overflow: "hidden",
+                            flexShrink: 0,
                           }}
                         >
-                          <Typography>{product.unitsSold} units sold</Typography>
-                          <Typography>•</Typography>
-                          <Typography>{product.price}</Typography>
+                          {product.thumbnail ? (
+                            <Image
+                              src={product.thumbnail}
+                              alt={product.productName}
+                              width={60}
+                              height={60}
+                              style={{ objectFit: "cover" }}
+                            />
+                          ) : (
+                            <Box sx={{ width: 60, height: 60, bgcolor: "#111", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <Package size={24} color="#9E9E9E" />
+                            </Box>
+                          )}
                         </Box>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography
+                            sx={{
+                              color: "#fff",
+                              fontWeight: 500,
+                              mb: 0.5,
+                            }}
+                          >
+                            {product.productName}
+                          </Typography>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              gap: 2,
+                              color: "#9E9E9E",
+                              fontSize: "0.75rem",
+                            }}
+                          >
+                            <Typography>{product.orders || 0} units sold</Typography>
+                            <Typography>•</Typography>
+                            <Typography>${(product.discountPrice || product.price).toFixed(2)}</Typography>
+                          </Box>
+                        </Box>
+                        <IconButton size="small" sx={{ color: "#39FF14" }}>
+                          <Edit size={16} />
+                        </IconButton>
                       </Box>
-                      <IconButton size="small" sx={{ color: "#39FF14" }}>
-                        <Edit size={16} />
-                      </IconButton>
-                    </Box>
-                  ))}
-                </Box>
+                    ))}
+                  </Box>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -776,83 +713,99 @@ export default function AdminDashboardPage() {
                     </Button>
                   </Link>
                 </Box>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {lowStockProducts.map((product) => (
-                    <Box
-                      key={product.id}
-                      sx={{
-                        display: "flex",
-                        gap: 2,
-                        alignItems: "center",
-                      }}
-                    >
+                {loading ? (
+                  <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                    <CircularProgress sx={{ color: "#39FF14" }} />
+                  </Box>
+                ) : lowStockProducts.length === 0 ? (
+                  <Typography sx={{ color: "#9E9E9E", textAlign: "center", py: 4 }}>
+                    All products are in stock
+                  </Typography>
+                ) : (
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    {lowStockProducts.map((product) => (
                       <Box
+                        key={product.id}
                         sx={{
-                          width: 60,
-                          height: 60,
-                          borderRadius: 1.5,
-                          overflow: "hidden",
-                          flexShrink: 0,
+                          display: "flex",
+                          gap: 2,
+                          alignItems: "center",
                         }}
                       >
-                        <Image
-                          src={product.image}
-                          alt={product.name}
-                          width={60}
-                          height={60}
-                          style={{ objectFit: "cover" }}
-                        />
-                      </Box>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography
-                          sx={{
-                            color: "#fff",
-                            fontWeight: 500,
-                            mb: 0.5,
-                          }}
-                        >
-                          {product.name}
-                        </Typography>
                         <Box
                           sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
+                            width: 60,
+                            height: 60,
+                            borderRadius: 1.5,
+                            overflow: "hidden",
+                            flexShrink: 0,
                           }}
                         >
-                          <Chip
-                            label={`Stock: ${product.stock}`}
-                            size="small"
+                          {product.thumbnail ? (
+                            <Image
+                              src={product.thumbnail}
+                              alt={product.productName}
+                              width={60}
+                              height={60}
+                              style={{ objectFit: "cover" }}
+                            />
+                          ) : (
+                            <Box sx={{ width: 60, height: 60, bgcolor: "#111", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <Package size={24} color="#9E9E9E" />
+                            </Box>
+                          )}
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography
                             sx={{
-                              bgcolor:
-                                product.status === "Critical"
-                                  ? "rgba(255,77,79,0.1)"
-                                  : "rgba(245,166,35,0.1)",
-                              color:
-                                product.status === "Critical" ? "#FF4D4F" : "#F5A623",
-                            }}
-                          />
-                          <Button
-                            variant="contained"
-                            size="small"
-                            startIcon={<Plus size={14} />}
-                            sx={{
-                              bgcolor: "#39FF14",
-                              color: "#000",
-                              textTransform: "none",
-                              fontFamily: "Poppins, sans-serif",
-                              "&:hover": {
-                                bgcolor: "#2dd610",
-                              },
+                              color: "#fff",
+                              fontWeight: 500,
+                              mb: 0.5,
                             }}
                           >
-                            Restock
-                          </Button>
+                            {product.productName}
+                          </Typography>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                            }}
+                          >
+                            <Chip
+                              label={`Stock: ${product.stock}`}
+                              size="small"
+                              sx={{
+                                bgcolor:
+                                  product.stock < 5
+                                    ? "rgba(255,77,79,0.1)"
+                                    : "rgba(245,166,35,0.1)",
+                                color:
+                                  product.stock < 5 ? "#FF4D4F" : "#F5A623",
+                              }}
+                            />
+                            <Button
+                              variant="contained"
+                              size="small"
+                              startIcon={<Plus size={14} />}
+                              sx={{
+                                bgcolor: "#39FF14",
+                                color: "#000",
+                                textTransform: "none",
+                                fontFamily: "Poppins, sans-serif",
+                                "&:hover": {
+                                  bgcolor: "#2dd610",
+                                },
+                              }}
+                            >
+                              Restock
+                            </Button>
+                          </Box>
                         </Box>
                       </Box>
-                    </Box>
-                  ))}
-                </Box>
+                    ))}
+                  </Box>
+                )}
               </CardContent>
             </Card>
           </motion.div>

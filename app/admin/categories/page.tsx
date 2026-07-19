@@ -22,7 +22,6 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -32,6 +31,8 @@ import {
   Avatar,
   Divider,
   Tooltip,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import {
   LayoutDashboard,
@@ -59,9 +60,17 @@ import {
   Activity,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import Image from "next/image";
+import { CldUploadWidget } from "next-cloudinary";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import type { Category } from "@/types/category";
+import {
+  fetchCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from "@/lib/categories";
+import Image from "next/image";
 
 // Status Chip Component
 const StatusChip = ({ status }: { status: string }) => {
@@ -95,263 +104,199 @@ const StatusChip = ({ status }: { status: string }) => {
   );
 };
 
-// Summary Card Component
-const SummaryCard = ({
-  title,
-  value,
-  icon: Icon,
-  change,
-  changeLabel,
-}: {
-  title: string;
-  value: string | number;
-  icon: any;
-  change: number;
-  changeLabel: string;
-}) => {
-  const isPositive = change >= 0;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.4 }}
-    >
-      <Card
-        sx={{
-          background: "linear-gradient(135deg, rgba(17,17,17,1) 0%, rgba(9,9,9,1) 100%)",
-          border: "1px solid rgba(57,255,20,0.15)",
-          boxShadow: "0 0 30px rgba(57,255,20,0.05)",
-          "&:hover": {
-            border: "1px solid rgba(57,255,20,0.3)",
-            boxShadow: "0 0 40px rgba(57,255,20,0.1)",
-          },
-        }}
-      >
-        <CardContent sx={{ p: 3 }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <Box sx={{ flex: 1 }}>
-              <Typography
-                variant="caption"
-                sx={{
-                  color: "#9E9E9E",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: 600,
-                  display: "block",
-                  mb: 1,
-                }}
-              >
-                {title}
-              </Typography>
-              <Typography
-                variant="h3"
-                sx={{
-                  color: "#fff",
-                  fontWeight: 700,
-                  fontFamily: "Inter, sans-serif",
-                  mb: 1,
-                }}
-              >
-                {value}
-              </Typography>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: isPositive ? "#39FF14" : "#FF4D4F",
-                    fontWeight: 700,
-                    fontFamily: "Poppins, sans-serif",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
-                  {isPositive ? "↑" : "↓"} {Math.abs(change)}%
-                </Typography>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: "#9E9E9E",
-                    fontFamily: "Poppins, sans-serif",
-                  }}
-                >
-                  {changeLabel}
-                </Typography>
-              </Box>
-            </Box>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 60,
-                height: 60,
-                borderRadius: "50%",
-                background: "rgba(57,255,20,0.1)",
-                border: "2px solid rgba(57,255,20,0.2)",
-              }}
-            >
-              <Icon color="#39FF14" size={28} />
-            </Box>
-          </Box>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
-};
-
-// Sample Data
-const categories = [
-  {
-    id: "1",
-    name: "Hoodies",
-    slug: "hoodies",
-    description: "Premium hoodies for all seasons and styles",
-    productCount: 64,
-    status: "Active",
-    createdAt: "May 20, 2024",
-    image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=100&auto=format&fit=crop&q=60",
-    featured: true,
-  },
-  {
-    id: "2",
-    name: "T-Shirts",
-    slug: "t-shirts",
-    description: "Essential tees for everyday comfort and style",
-    productCount: 82,
-    status: "Active",
-    createdAt: "May 19, 2024",
-    image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=100&auto=format&fit=crop&q=60",
-    featured: true,
-  },
-  {
-    id: "3",
-    name: "Pants",
-    slug: "pants",
-    description: "Comfortable pants for streetwear lovers",
-    productCount: 48,
-    status: "Active",
-    createdAt: "May 18, 2024",
-    image: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=100&auto=format&fit=crop&q=60",
-    featured: false,
-  },
-  {
-    id: "4",
-    name: "Jackets",
-    slug: "jackets",
-    description: "Stylish jackets for every occasion",
-    productCount: 36,
-    status: "Active",
-    createdAt: "May 17, 2024",
-    image: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=100&auto=format&fit=crop&q=60",
-    featured: true,
-  },
-  {
-    id: "5",
-    name: "Accessories",
-    slug: "accessories",
-    description: "Complete your look with our accessories",
-    productCount: 56,
-    status: "Active",
-    createdAt: "May 16, 2024",
-    image: "https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=100&auto=format&fit=crop&q=60",
-    featured: false,
-  },
-  {
-    id: "6",
-    name: "Hats & Caps",
-    slug: "hats-caps",
-    description: "Trendy hats and caps collection",
-    productCount: 24,
-    status: "Active",
-    createdAt: "May 15, 2024",
-    image: "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=100&auto=format&fit=crop&q=60",
-    featured: false,
-  },
-  {
-    id: "7",
-    name: "Shoes",
-    slug: "shoes",
-    description: "Premium footwear for all occasions",
-    productCount: 28,
-    status: "Inactive",
-    createdAt: "May 14, 2024",
-    image: "https://images.unsplash.com/photo-1548126032-079a0fb0099d?w=100&auto=format&fit=crop&q=60",
-    featured: false,
-  },
-  {
-    id: "8",
-    name: "Bags",
-    slug: "bags",
-    description: "Bags and backpacks for every lifestyle",
-    productCount: 18,
-    status: "Inactive",
-    createdAt: "May 13, 2024",
-    image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=100&auto=format&fit=crop&q=60",
-    featured: false,
-  },
-];
-
-const categorySummary = [
-  {
-    title: "Total Categories",
-    value: 28,
-    icon: BoxIcon,
-    change: 12.5,
-    changeLabel: "vs last month",
-  },
-  {
-    title: "Active Categories",
-    value: 24,
-    icon: FolderKanban,
-    change: 10.8,
-    changeLabel: "vs last month",
-  },
-  {
-    title: "Inactive Categories",
-    value: 4,
-    icon: PauseCircle,
-    change: -2.1,
-    changeLabel: "vs last month",
-  },
-  {
-    title: "Total Products",
-    value: 356,
-    icon: ShoppingBag,
-    change: 18.7,
-    changeLabel: "vs last month",
-  },
-];
-
-const topCategories = [
-  { name: "T-Shirts", count: 82 },
-  { name: "Hoodies", count: 64 },
-  { name: "Accessories", count: 56 },
-  { name: "Pants", count: 48 },
-  { name: "Jackets", count: 36 },
-];
-
-const recentActivity = [
-  { type: "Created", icon: Plus, time: "2 hours ago", description: "New category \"Summer Collection\" created" },
-  { type: "Updated", icon: Edit, time: "5 hours ago", description: "Category \"Shoes\" updated" },
-  { type: "Deactivated", icon: PauseCircle, time: "1 day ago", description: "Category \"Bags\" deactivated" },
-  { type: "Updated", icon: Edit, time: "2 days ago", description: "Category \"Accessories\" updated" },
-  { type: "Activated", icon: PlayCircle, time: "3 days ago", description: "Category \"Hats & Caps\" activated" },
-];
-
 export default function AdminCategoriesPage() {
   const [openModal, setOpenModal] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<any>(null);
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Inactive" | "Draft">("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error";
+  }>({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+  const [formData, setFormData] = useState<Partial<Category>>({
+    name: "",
+    slug: "",
+    description: "",
+    status: "Draft",
+    featured: false,
+    sortOrder: 0,
+    parentId: "",
+    seoTitle: "",
+    seoDescription: "",
+    image: "",
+    bannerImage: "",
+  });
+
+  // Fetch categories on load
+  const loadCategories = async () => {
+    try {
+      setLoading(true);
+      const data = await fetchCategories(statusFilter);
+      setCategories(data);
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Failed to load categories",
+        severity: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCategories();
+  }, [statusFilter]);
+
+  // Handle form changes
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "number" ? Number(value) : value,
+    }));
+  };
+
+  // Handle switch changes
+  const handleSwitchChange = (name: string, checked: boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      [name]: checked,
+    }));
+  };
+
+  // Open create modal
+  const handleOpenCreateModal = () => {
+    setSelectedCategory(null);
+    setFormData({
+      name: "",
+      slug: "",
+      description: "",
+      status: "Draft",
+      featured: false,
+      sortOrder: 0,
+      parentId: "",
+      seoTitle: "",
+      seoDescription: "",
+      image: "",
+      bannerImage: "",
+    });
+    setOpenModal(true);
+  };
+
+  // Open edit modal
+  const handleOpenEditModal = (category: Category) => {
+    setSelectedCategory(category);
+    setFormData({
+      ...category,
+    });
+    setOpenModal(true);
+  };
+
+  // Handle form submit
+  const handleSubmit = async () => {
+    try {
+      if (selectedCategory?.id) {
+        await updateCategory(selectedCategory.id, formData);
+        setSnackbar({
+          open: true,
+          message: "Category updated successfully",
+          severity: "success",
+        });
+      } else {
+        await createCategory(formData as Omit<Category, "id" | "createdAt" | "updatedAt">);
+        setSnackbar({
+          open: true,
+          message: "Category created successfully",
+          severity: "success",
+        });
+      }
+      setOpenModal(false);
+      loadCategories();
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Failed to save category",
+        severity: "error",
+      });
+    }
+  };
+
+  // Handle delete
+  const handleDelete = async () => {
+    if (selectedCategory?.id) {
+      try {
+        await deleteCategory(selectedCategory.id);
+        setSnackbar({
+          open: true,
+          message: "Category deleted successfully",
+          severity: "success",
+        });
+        setOpenDeleteModal(false);
+        loadCategories();
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: "Failed to delete category",
+          severity: "error",
+        });
+      }
+    }
+  };
+
+  // Handle Cloudinary upload success
+  const handleCloudinaryUpload = (result: any, fieldName: "image" | "bannerImage") => {
+    if (result.event === "success" && result.info) {
+      setFormData((prev) => ({
+        ...prev,
+        [fieldName]: result.info.secure_url,
+      }));
+      setSnackbar({
+        open: true,
+        message: "Image uploaded successfully",
+        severity: "success",
+      });
+    }
+  };
+
+  // Filter categories by search query
+  const filteredCategories = categories.filter((category) => {
+    if (!searchQuery) return true;
+    const lowerQuery = searchQuery.toLowerCase();
+    return (
+      category.name.toLowerCase().includes(lowerQuery) ||
+      category.description.toLowerCase().includes(lowerQuery) ||
+      category.slug.toLowerCase().includes(lowerQuery)
+    );
+  });
+
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(filteredCategories.length / PAGE_SIZE));
+  const paginatedCategories = filteredCategories.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE
+  );
+
+  // Stats for summary cards
+  const totalCategories = categories.length;
+  const activeCategories = categories.filter((c) => c.status === "Active").length;
+  const inactiveCategories = categories.filter((c) => c.status === "Inactive").length;
+  const totalProducts = categories.reduce((sum, c) => sum + (c.productCount || 0), 0);
+  const topCategories = [...categories]
+    .sort((a, b) => (b.productCount || 0) - (a.productCount || 0))
+    .slice(0, 5);
 
   return (
-    <Box sx={{ maxWidth: "1800px", mx: "auto", width: "100%" }}>
+    <Box sx={{ maxWidth: "1800px", mx: "auto", width: "100%", overflowX: "hidden" }}>
       {/* Page Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -403,10 +348,7 @@ export default function AdminCategoriesPage() {
             <Button
               variant="contained"
               startIcon={<Plus size={18} />}
-              onClick={() => {
-                setSelectedCategory(null);
-                setOpenModal(true);
-              }}
+              onClick={handleOpenCreateModal}
               sx={{
                 bgcolor: "#39FF14",
                 color: "#000",
@@ -426,11 +368,274 @@ export default function AdminCategoriesPage() {
 
       {/* Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        {categorySummary.map((stat, index) => (
-          <Grid item xs={12} sm={6} md={3} key={index}>
-            <SummaryCard {...stat} />
-          </Grid>
-        ))}
+        <Grid item xs={12} sm={6} md={3}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            whileHover={{ y: -4 }}
+            transition={{ duration: 0.4 }}
+          >
+            <Card
+              sx={{
+                background: "linear-gradient(135deg, rgba(17,17,17,1) 0%, rgba(9,9,9,1) 100%)",
+                border: "1px solid rgba(57,255,20,0.15)",
+                boxShadow: "0 0 30px rgba(57,255,20,0.05)",
+                "&:hover": {
+                  border: "1px solid rgba(57,255,20,0.3)",
+                  boxShadow: "0 0 40px rgba(57,255,20,0.1)",
+                },
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: "#9E9E9E",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.1em",
+                        fontFamily: "Poppins, sans-serif",
+                        fontWeight: 600,
+                        display: "block",
+                        mb: 1,
+                      }}
+                    >
+                      Total Categories
+                    </Typography>
+                    <Typography
+                      variant="h3"
+                      sx={{
+                        color: "#fff",
+                        fontWeight: 700,
+                        fontFamily: "Inter, sans-serif",
+                        mb: 1,
+                      }}
+                    >
+                      {totalCategories}
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 60,
+                      height: 60,
+                      borderRadius: "50%",
+                      background: "rgba(57,255,20,0.1)",
+                      border: "2px solid rgba(57,255,20,0.2)",
+                    }}
+                  >
+                    <FolderKanban color="#39FF14" size={28} />
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            whileHover={{ y: -4 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+          >
+            <Card
+              sx={{
+                background: "linear-gradient(135deg, rgba(17,17,17,1) 0%, rgba(9,9,9,1) 100%)",
+                border: "1px solid rgba(57,255,20,0.15)",
+                boxShadow: "0 0 30px rgba(57,255,20,0.05)",
+                "&:hover": {
+                  border: "1px solid rgba(57,255,20,0.3)",
+                  boxShadow: "0 0 40px rgba(57,255,20,0.1)",
+                },
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: "#9E9E9E",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.1em",
+                        fontFamily: "Poppins, sans-serif",
+                        fontWeight: 600,
+                        display: "block",
+                        mb: 1,
+                      }}
+                    >
+                      Active Categories
+                    </Typography>
+                    <Typography
+                      variant="h3"
+                      sx={{
+                        color: "#fff",
+                        fontWeight: 700,
+                        fontFamily: "Inter, sans-serif",
+                        mb: 1,
+                      }}
+                    >
+                      {activeCategories}
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 60,
+                      height: 60,
+                      borderRadius: "50%",
+                      background: "rgba(57,255,20,0.1)",
+                      border: "2px solid rgba(57,255,20,0.2)",
+                    }}
+                  >
+                    <CheckCircle2 color="#39FF14" size={28} />
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            whileHover={{ y: -4 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+          >
+            <Card
+              sx={{
+                background: "linear-gradient(135deg, rgba(17,17,17,1) 0%, rgba(9,9,9,1) 100%)",
+                border: "1px solid rgba(57,255,20,0.15)",
+                boxShadow: "0 0 30px rgba(57,255,20,0.05)",
+                "&:hover": {
+                  border: "1px solid rgba(57,255,20,0.3)",
+                  boxShadow: "0 0 40px rgba(57,255,20,0.1)",
+                },
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: "#9E9E9E",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.1em",
+                        fontFamily: "Poppins, sans-serif",
+                        fontWeight: 600,
+                        display: "block",
+                        mb: 1,
+                      }}
+                    >
+                      Inactive Categories
+                    </Typography>
+                    <Typography
+                      variant="h3"
+                      sx={{
+                        color: "#fff",
+                        fontWeight: 700,
+                        fontFamily: "Inter, sans-serif",
+                        mb: 1,
+                      }}
+                    >
+                      {inactiveCategories}
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 60,
+                      height: 60,
+                      borderRadius: "50%",
+                      background: "rgba(255,77,79,0.1)",
+                      border: "2px solid rgba(255,77,79,0.2)",
+                    }}
+                  >
+                    <PauseCircle color="#FF4D4F" size={28} />
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            whileHover={{ y: -4 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+          >
+            <Card
+              sx={{
+                background: "linear-gradient(135deg, rgba(17,17,17,1) 0%, rgba(9,9,9,1) 100%)",
+                border: "1px solid rgba(57,255,20,0.15)",
+                boxShadow: "0 0 30px rgba(57,255,20,0.05)",
+                "&:hover": {
+                  border: "1px solid rgba(57,255,20,0.3)",
+                  boxShadow: "0 0 40px rgba(57,255,20,0.1)",
+                },
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: "#9E9E9E",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.1em",
+                        fontFamily: "Poppins, sans-serif",
+                        fontWeight: 600,
+                        display: "block",
+                        mb: 1,
+                      }}
+                    >
+                      Total Products
+                    </Typography>
+                    <Typography
+                      variant="h3"
+                      sx={{
+                        color: "#fff",
+                        fontWeight: 700,
+                        fontFamily: "Inter, sans-serif",
+                        mb: 1,
+                      }}
+                    >
+                      {totalProducts}
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 60,
+                      height: 60,
+                      borderRadius: "50%",
+                      background: "rgba(57,255,20,0.1)",
+                      border: "2px solid rgba(57,255,20,0.2)",
+                    }}
+                  >
+                    <ShoppingBag color="#39FF14" size={28} />
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </Grid>
       </Grid>
 
       {/* Main Content */}
@@ -456,7 +661,7 @@ export default function AdminCategoriesPage() {
                   <FormControl size="small" sx={{ minWidth: 120 }}>
                     <Select
                       value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
+                      onChange={(e) => setStatusFilter(e.target.value as any)}
                       sx={{
                         color: "#fff",
                         bgcolor: "rgba(5,5,5,0.5)",
@@ -502,173 +707,226 @@ export default function AdminCategoriesPage() {
                       }}
                     />
                   </Box>
-                  {/* Sort & Filter Buttons */}
-                  <IconButton sx={{ color: "#9E9E9E", border: "1px solid rgba(57,255,20,0.2)", borderRadius: 1.5 }}>
-                    <SortAsc size={18} />
-                  </IconButton>
-                  <IconButton sx={{ color: "#9E9E9E", border: "1px solid rgba(57,255,20,0.2)", borderRadius: 1.5 }}>
-                    <Filter size={18} />
-                  </IconButton>
-                  <IconButton sx={{ color: "#9E9E9E", border: "1px solid rgba(57,255,20,0.2)", borderRadius: 1.5 }}>
-                    <Download size={18} />
-                  </IconButton>
                 </Box>
-                <FormControl size="small" sx={{ minWidth: 150 }}>
-                  <Select
-                    value="Bulk Actions"
-                    sx={{
-                      color: "#fff",
-                      bgcolor: "rgba(5,5,5,0.5)",
-                      border: "1px solid rgba(57,255,20,0.2)",
-                      borderRadius: 2,
-                      ".MuiOutlinedInput-notchedOutline": { border: 0 },
-                    }}
-                  >
-                    <MenuItem value="Bulk Actions">Bulk Actions</MenuItem>
-                    <MenuItem value="Delete">Delete Selected</MenuItem>
-                    <MenuItem value="Activate">Activate Selected</MenuItem>
-                    <MenuItem value="Deactivate">Deactivate Selected</MenuItem>
-                  </Select>
-                </FormControl>
               </Box>
               <Divider sx={{ borderColor: "rgba(57,255,20,0.1)" }} />
 
-              {/* Table */}
-              <TableContainer sx={{ maxHeight: "70vh" }}>
-                <Table stickyHeader>
-                  <TableHead>
-                    <TableRow
-                      sx={{
-                        bgcolor: "rgba(5,5,5,0.8)",
-                      }}
-                    >
-                      <TableCell sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
-                        ::
-                      </TableCell>
-                      <TableCell sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
-                        Category
-                      </TableCell>
-                      <TableCell sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
-                        Description
-                      </TableCell>
-                      <TableCell sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
-                        Products
-                      </TableCell>
-                      <TableCell sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
-                        Status
-                      </TableCell>
-                      <TableCell sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
-                        Created At
-                      </TableCell>
-                      <TableCell sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
-                        Actions
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {categories.map((category) => (
-                      <motion.tr
+              {/* Table / Mobile Cards */}
+              {loading ? (
+                <Box sx={{ p: 6, textAlign: "center" }}>
+                  <Typography sx={{ color: "#9E9E9E", fontFamily: "Poppins, sans-serif" }}>
+                    Loading categories...
+                  </Typography>
+                </Box>
+              ) : (
+                <>
+                  <Box sx={{ display: { xs: "none", md: "block" } }}>
+                    <TableContainer sx={{ maxHeight: "70vh" }}>
+                      <Table stickyHeader>
+                        <TableHead>
+                          <TableRow
+                            sx={{
+                              bgcolor: "rgba(5,5,5,0.8)",
+                            }}
+                          >
+                            <TableCell sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
+                              Category
+                            </TableCell>
+                            <TableCell sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
+                              Description
+                            </TableCell>
+                            <TableCell sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
+                              Products
+                            </TableCell>
+                            <TableCell sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
+                              Status
+                            </TableCell>
+                            <TableCell sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
+                              Created At
+                            </TableCell>
+                            <TableCell sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
+                              Actions
+                            </TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {paginatedCategories.map((category) => (
+                            <motion.tr
+                              key={category.id}
+                              whileHover={{ backgroundColor: "rgba(57,255,20,0.03)" }}
+                            >
+                              <TableCell sx={{ py: 2 }}>
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                                  {category.image ? (
+                                    <Image
+                                      src={category.image}
+                                      alt={category.name}
+                                      width={44}
+                                      height={44}
+                                      style={{ borderRadius: 8, objectFit: "cover" }}
+                                    />
+                                  ) : (
+                                    <Avatar sx={{ width: 44, height: 44, borderRadius: 2, bgcolor: "#1a1a1a" }}>
+                                      <BoxIcon size={20} color="#9E9E9E" />
+                                    </Avatar>
+                                  )}
+                                  <Box>
+                                    <Typography sx={{ color: "#fff", fontWeight: 600, fontFamily: "Poppins, sans-serif" }}>
+                                      {category.name}
+                                    </Typography>
+                                    <Typography sx={{ color: "#9E9E9E", fontSize: "0.75rem", fontFamily: "Poppins, sans-serif" }}>
+                                      /{category.slug}
+                                    </Typography>
+                                  </Box>
+                                </Box>
+                              </TableCell>
+                              <TableCell sx={{ py: 2, color: "#9E9E9E", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem", maxWidth: 200 }}>
+                                {category.description}
+                              </TableCell>
+                              <TableCell sx={{ py: 2, color: "#fff", fontWeight: 600, fontFamily: "Inter, sans-serif" }}>
+                                {category.productCount || 0}
+                              </TableCell>
+                              <TableCell sx={{ py: 2 }}>
+                                <StatusChip status={category.status} />
+                              </TableCell>
+                              <TableCell sx={{ py: 2, color: "#9E9E9E", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem" }}>
+                                {new Date(category.createdAt).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell sx={{ py: 2 }}>
+                                <Box sx={{ display: "flex", gap: 0.5 }}>
+                                  <Tooltip title="Edit">
+                                    <IconButton
+                                      size="small"
+                                      sx={{ color: "#9E9E9E" }}
+                                      onClick={() => handleOpenEditModal(category)}
+                                    >
+                                      <Edit size={16} />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="Delete">
+                                    <IconButton
+                                      size="small"
+                                      sx={{ color: "#FF4D4F" }}
+                                      onClick={() => {
+                                        setSelectedCategory(category);
+                                        setOpenDeleteModal(true);
+                                      }}
+                                    >
+                                      <Trash2 size={16} />
+                                    </IconButton>
+                                  </Tooltip>
+                                </Box>
+                              </TableCell>
+                            </motion.tr>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Box>
+
+                  {/* Mobile Cards View */}
+                  <Box sx={{ display: { xs: "block", md: "none" } }}>
+                    {paginatedCategories.map((category) => (
+                      <motion.div
                         key={category.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
                         whileHover={{ backgroundColor: "rgba(57,255,20,0.03)" }}
+                        style={{
+                          padding: "16px",
+                          borderBottom: "1px solid rgba(57,255,20,0.1)",
+                        }}
                       >
-                        <TableCell sx={{ py: 2 }}>
-                          <MoreVertical size={16} color="#9E9E9E" />
-                        </TableCell>
-                        <TableCell sx={{ py: 2 }}>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                            <Avatar src={category.image} sx={{ width: 44, height: 44, borderRadius: 2 }} />
-                            <Box>
-                              <Typography sx={{ color: "#fff", fontWeight: 600, fontFamily: "Poppins, sans-serif" }}>
-                                {category.name}
+                        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, mb: 2 }}>
+                          {category.image ? (
+                            <Image
+                              src={category.image}
+                              alt={category.name}
+                              width={56}
+                              height={56}
+                              style={{ borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
+                            />
+                          ) : (
+                            <Avatar sx={{ width: 56, height: 56, borderRadius: 2, flexShrink: 0, bgcolor: "#1a1a1a" }}>
+                              <BoxIcon size={24} color="#9E9E9E" />
+                            </Avatar>
+                          )}
+                          <Box sx={{ flex: 1 }}>
+                            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                              <Box>
+                                <Typography sx={{ color: "#fff", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "1rem" }}>
+                                  {category.name}
+                                </Typography>
+                                <Typography sx={{ color: "#9E9E9E", fontSize: "0.75rem", fontFamily: "Poppins, sans-serif" }}>
+                                  /{category.slug}
+                                </Typography>
+                              </Box>
+                              <StatusChip status={category.status} />
+                            </Box>
+                            <Typography sx={{ color: "#9E9E9E", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem", mt: 1 }}>
+                              {category.description}
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2, pt: 2, borderTop: "1px solid rgba(57,255,20,0.08)" }}>
+                          <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+                            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                              <Typography sx={{ color: "#9E9E9E", fontSize: "0.75rem", fontFamily: "Poppins, sans-serif", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                                Products
                               </Typography>
-                              <Typography sx={{ color: "#9E9E9E", fontSize: "0.75rem", fontFamily: "Poppins, sans-serif" }}>
-                                /{category.slug}
+                              <Typography sx={{ color: "#fff", fontWeight: 600, fontFamily: "Inter, sans-serif", fontSize: "1rem" }}>
+                                {category.productCount || 0}
                               </Typography>
                             </Box>
+                            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                              <Typography sx={{ color: "#9E9E9E", fontSize: "0.75rem", fontFamily: "Poppins, sans-serif", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                                Created
+                              </Typography>
+                              <Typography sx={{ color: "#fff", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem" }}>
+                                {new Date(category.createdAt).toLocaleDateString()}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: "flex", gap: 0.5 }}>
+                              <Tooltip title="Edit">
+                                <IconButton
+                                  size="small"
+                                  sx={{ color: "#9E9E9E" }}
+                                  onClick={() => handleOpenEditModal(category)}
+                                >
+                                  <Edit size={18} />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Delete">
+                                <IconButton
+                                  size="small"
+                                  sx={{ color: "#FF4D4F" }}
+                                  onClick={() => {
+                                    setSelectedCategory(category);
+                                    setOpenDeleteModal(true);
+                                  }}
+                                >
+                                  <Trash2 size={18} />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
                           </Box>
-                        </TableCell>
-                        <TableCell sx={{ py: 2, color: "#9E9E9E", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem", maxWidth: 200 }}>
-                          {category.description}
-                        </TableCell>
-                        <TableCell sx={{ py: 2, color: "#fff", fontWeight: 600, fontFamily: "Inter, sans-serif" }}>
-                          {category.productCount}
-                        </TableCell>
-                        <TableCell sx={{ py: 2 }}>
-                          <StatusChip status={category.status} />
-                        </TableCell>
-                        <TableCell sx={{ py: 2, color: "#9E9E9E", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem" }}>
-                          {category.createdAt}
-                        </TableCell>
-                        <TableCell sx={{ py: 2 }}>
-                          <Box sx={{ display: "flex", gap: 0.5 }}>
-                            <Tooltip title="Preview">
-                              <IconButton size="small" sx={{ color: "#9E9E9E" }}>
-                                <Eye size={16} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Edit">
-                              <IconButton
-                                size="small"
-                                sx={{ color: "#9E9E9E" }}
-                                onClick={() => {
-                                  setSelectedCategory(category);
-                                  setOpenModal(true);
-                                }}
-                              >
-                                <Edit size={16} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Duplicate">
-                              <IconButton size="small" sx={{ color: "#9E9E9E" }}>
-                                <Copy size={16} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete">
-                              <IconButton
-                                size="small"
-                                sx={{ color: "#FF4D4F" }}
-                                onClick={() => {
-                                  setSelectedCategory(category);
-                                  setOpenDeleteModal(true);
-                                }}
-                              >
-                                <Trash2 size={16} />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        </TableCell>
-                      </motion.tr>
+                        </Box>
+                      </motion.div>
                     ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                  </Box>
+                </>
+              )}
 
               {/* Pagination */}
-              <Box sx={{ p: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Typography sx={{ color: "#9E9E9E", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem" }}>
-                  Showing 1 to {categories.length} of {categorySummary[0].value} categories
-                </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <FormControl size="small" sx={{ minWidth: 100 }}>
-                    <Select
-                      value={10}
-                      sx={{
-                        color: "#fff",
-                        bgcolor: "rgba(5,5,5,0.5)",
-                        border: "1px solid rgba(57,255,20,0.2)",
-                        borderRadius: 2,
-                        ".MuiOutlinedInput-notchedOutline": { border: 0 },
-                      }}
-                    >
-                      <MenuItem value={5}>5 / page</MenuItem>
-                      <MenuItem value={10}>10 / page</MenuItem>
-                      <MenuItem value={25}>25 / page</MenuItem>
-                      <MenuItem value={50}>50 / page</MenuItem>
-                    </Select>
-                  </FormControl>
+              {!loading && filteredCategories.length > 0 && (
+                <Box sx={{ p: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography sx={{ color: "#9E9E9E", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem" }}>
+                    Showing {(page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, filteredCategories.length)} of {filteredCategories.length} categories
+                  </Typography>
                   <Pagination
                     page={page}
-                    count={10}
+                    count={totalPages}
                     onChange={(_, newPage) => setPage(newPage)}
                     sx={{
                       ".MuiPaginationItem-root": {
@@ -681,7 +939,7 @@ export default function AdminCategoriesPage() {
                     }}
                   />
                 </Box>
-              </Box>
+              )}
             </Card>
           </motion.div>
         </Grid>
@@ -712,33 +970,37 @@ export default function AdminCategoriesPage() {
                     <Box sx={{ position: "relative", width: 160, height: 160, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <svg width="160" height="160" viewBox="0 0 160 160">
                         <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(57,255,20,0.1)" strokeWidth="16" />
-                        <circle
-                          cx="80"
-                          cy="80"
-                          r="70"
-                          fill="none"
-                          stroke="#39FF14"
-                          strokeWidth="16"
-                          strokeDasharray={`${24 / 28 * 2 * Math.PI * 70} ${2 * Math.PI * 70}`}
-                          strokeLinecap="round"
-                          transform="rotate(-90 80 80)"
-                        />
-                        <circle
-                          cx="80"
-                          cy="80"
-                          r="70"
-                          fill="none"
-                          stroke="#FF4D4F"
-                          strokeWidth="16"
-                          strokeDasharray={`${4 / 28 * 2 * Math.PI * 70} ${2 * Math.PI * 70}`}
-                          strokeDashoffset={`${-24 / 28 * 2 * Math.PI * 70}`}
-                          strokeLinecap="round"
-                          transform="rotate(-90 80 80)"
-                        />
+                        {totalCategories > 0 && (
+                          <>
+                            <circle
+                              cx="80"
+                              cy="80"
+                              r="70"
+                              fill="none"
+                              stroke="#39FF14"
+                              strokeWidth="16"
+                              strokeDasharray={`${(activeCategories / totalCategories) * 2 * Math.PI * 70} ${2 * Math.PI * 70}`}
+                              strokeLinecap="round"
+                              transform="rotate(-90 80 80)"
+                            />
+                            <circle
+                              cx="80"
+                              cy="80"
+                              r="70"
+                              fill="none"
+                              stroke="#FF4D4F"
+                              strokeWidth="16"
+                              strokeDasharray={`${(inactiveCategories / totalCategories) * 2 * Math.PI * 70} ${2 * Math.PI * 70}`}
+                              strokeDashoffset={`${-(activeCategories / totalCategories) * 2 * Math.PI * 70}`}
+                              strokeLinecap="round"
+                              transform="rotate(-90 80 80)"
+                            />
+                          </>
+                        )}
                       </svg>
                       <Box sx={{ position: "absolute", textAlign: "center" }}>
                         <Typography sx={{ color: "#fff", fontWeight: 700, fontFamily: "Inter, sans-serif", fontSize: "2rem" }}>
-                          {categorySummary[0].value}
+                          {totalCategories}
                         </Typography>
                         <Typography sx={{ color: "#9E9E9E", fontSize: "0.75rem", fontFamily: "Poppins, sans-serif" }}>
                           Total
@@ -755,7 +1017,7 @@ export default function AdminCategoriesPage() {
                         </Typography>
                       </Box>
                       <Typography sx={{ color: "#9E9E9E", fontFamily: "Inter, sans-serif", fontWeight: 600, fontSize: "0.875rem" }}>
-                        {categorySummary[1].value} ({Math.round(24 / 28 * 100)}%)
+                        {activeCategories} ({totalCategories > 0 ? Math.round((activeCategories / totalCategories) * 100) : 0}%)
                       </Typography>
                     </Box>
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -766,7 +1028,7 @@ export default function AdminCategoriesPage() {
                         </Typography>
                       </Box>
                       <Typography sx={{ color: "#9E9E9E", fontFamily: "Inter, sans-serif", fontWeight: 600, fontSize: "0.875rem" }}>
-                        {categorySummary[2].value} ({Math.round(4 / 28 * 100)}%)
+                        {inactiveCategories} ({totalCategories > 0 ? Math.round((inactiveCategories / totalCategories) * 100) : 0}%)
                       </Typography>
                     </Box>
                   </Box>
@@ -795,16 +1057,16 @@ export default function AdminCategoriesPage() {
                   </Typography>
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     {topCategories.map((cat, index) => {
-                      const maxCount = topCategories[0].count;
-                      const percentage = (cat.count / maxCount) * 100;
+                      const maxCount = topCategories[0]?.productCount || 1;
+                      const percentage = ((cat.productCount || 0) / maxCount) * 100;
                       return (
-                        <Box key={index}>
+                        <Box key={cat.id || index}>
                           <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
                             <Typography sx={{ color: "#fff", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem" }}>
                               {cat.name}
                             </Typography>
                             <Typography sx={{ color: "#9E9E9E", fontFamily: "Inter, sans-serif", fontWeight: 600, fontSize: "0.875rem" }}>
-                              {cat.count}
+                              {cat.productCount || 0}
                             </Typography>
                           </Box>
                           <Box
@@ -833,84 +1095,6 @@ export default function AdminCategoriesPage() {
                 </CardContent>
               </Card>
             </motion.div>
-
-            {/* Recent Activity Widget */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-            >
-              <Card sx={{ background: "#111111", border: "1px solid rgba(57,255,20,0.15)", borderRadius: 3 }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-                    <Typography
-                      variant="h5"
-                      sx={{
-                        color: "#fff",
-                        fontWeight: 600,
-                        fontFamily: "Poppins, sans-serif",
-                      }}
-                    >
-                      Recent Activity
-                    </Typography>
-                    <Button
-                      variant="text"
-                      sx={{
-                        color: "#39FF14",
-                        fontFamily: "Poppins, sans-serif",
-                        fontWeight: 600,
-                        textTransform: "none",
-                        fontSize: "0.75rem",
-                      }}
-                    >
-                      View All
-                    </Button>
-                  </Box>
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    {recentActivity.map((activity, index) => (
-                      <Box key={index} sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
-                        <Box
-                          sx={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: "50%",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            bgcolor: "rgba(57,255,20,0.1)",
-                            flexShrink: 0,
-                          }}
-                        >
-                          <activity.icon size={18} color="#39FF14" />
-                        </Box>
-                        <Box>
-                          <Typography
-                            sx={{
-                              color: "#fff",
-                              fontWeight: 500,
-                              fontFamily: "Poppins, sans-serif",
-                              fontSize: "0.875rem",
-                              mb: 0.25,
-                            }}
-                          >
-                            {activity.description}
-                          </Typography>
-                          <Typography
-                            sx={{
-                              color: "#9E9E9E",
-                              fontSize: "0.75rem",
-                              fontFamily: "Poppins, sans-serif",
-                            }}
-                          >
-                            {activity.time}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    ))}
-                  </Box>
-                </CardContent>
-              </Card>
-            </motion.div>
           </Box>
         </Grid>
       </Grid>
@@ -924,8 +1108,10 @@ export default function AdminCategoriesPage() {
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 1 }}>
             <TextField
               label="Category Name"
+              name="name"
               fullWidth
-              defaultValue={selectedCategory?.name}
+              value={formData.name}
+              onChange={handleFormChange}
               sx={{
                 "& .MuiOutlinedInput-root": {
                   color: "#fff",
@@ -949,8 +1135,10 @@ export default function AdminCategoriesPage() {
             />
             <TextField
               label="Slug"
+              name="slug"
               fullWidth
-              defaultValue={selectedCategory?.slug}
+              value={formData.slug}
+              onChange={handleFormChange}
               sx={{
                 "& .MuiOutlinedInput-root": {
                   color: "#fff",
@@ -972,11 +1160,35 @@ export default function AdminCategoriesPage() {
                 },
               }}
             />
+            <FormControl fullWidth>
+              <Select
+                label="Status"
+                name="status"
+                value={formData.status}
+                onChange={(e) => handleFormChange({ target: { name: "status", value: e.target.value } } as any)}
+                sx={{
+                  color: "#fff",
+                  bgcolor: "rgba(5,5,5,0.5)",
+                  border: "1px solid rgba(57,255,20,0.2)",
+                  borderRadius: 1,
+                  ".MuiOutlinedInput-notchedOutline": { border: 0 },
+                  "&:hover .MuiOutlinedInput-notchedOutline": { border: 0 },
+                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#39FF14" },
+                }}
+              >
+                <MenuItem value="Draft">Draft</MenuItem>
+                <MenuItem value="Active">Active</MenuItem>
+                <MenuItem value="Inactive">Inactive</MenuItem>
+              </Select>
+            </FormControl>
             <TextField
-              label="Parent Category"
+              label="Description"
+              name="description"
               fullWidth
-              select
-              defaultValue=""
+              multiline
+              rows={3}
+              value={formData.description}
+              onChange={handleFormChange}
               sx={{
                 "& .MuiOutlinedInput-root": {
                   color: "#fff",
@@ -997,18 +1209,122 @@ export default function AdminCategoriesPage() {
                   },
                 },
               }}
-            >
-              <MenuItem value="">None</MenuItem>
-              {categories.map((cat) => (
-                <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
-              ))}
-            </TextField>
+            />
+            <Divider sx={{ borderColor: "rgba(57,255,20,0.1)", my: 1 }} />
+            <Typography sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
+              Media
+            </Typography>
+            <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
+              <Card sx={{ flex: 1, p: 2, bgcolor: "rgba(5,5,5,0.5)", border: "1px dashed rgba(57,255,20,0.2)", borderRadius: 2, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 180, cursor: "pointer", position: "relative" }}>
+                {formData.image ? (
+                  <>
+                    <Image
+                      src={formData.image}
+                      alt="Category preview"
+                      fill
+                      style={{ objectFit: "cover", borderRadius: 8 }}
+                    />
+                    <Box sx={{ position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)" }}>
+                      <CldUploadWidget
+                        uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                        folder={process.env.NEXT_PUBLIC_CLOUDINARY_FOLDER}
+                        onSuccess={(result) => handleCloudinaryUpload(result, "image")}
+                      >
+                        {({ open }) => (
+                          <Button
+                            variant="contained"
+                            size="small"
+                            onClick={() => open()}
+                            sx={{ bgcolor: "#39FF14", color: "#000", "&:hover": { bgcolor: "#2dd610" } }}
+                          >
+                            Change Image
+                          </Button>
+                        )}
+                      </CldUploadWidget>
+                    </Box>
+                  </>
+                ) : (
+                  <CldUploadWidget
+                    uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                    folder={process.env.NEXT_PUBLIC_CLOUDINARY_FOLDER}
+                    onSuccess={(result) => handleCloudinaryUpload(result, "image")}
+                  >
+                    {({ open }) => (
+                      <Box onClick={() => open()} sx={{ textAlign: "center" }}>
+                        <Upload size={32} color="#9E9E9E" />
+                        <Typography sx={{ color: "#9E9E9E", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem", mt: 1 }}>
+                          Upload Category Image
+                        </Typography>
+                      </Box>
+                    )}
+                  </CldUploadWidget>
+                )}
+              </Card>
+              <Card sx={{ flex: 1, p: 2, bgcolor: "rgba(5,5,5,0.5)", border: "1px dashed rgba(57,255,20,0.2)", borderRadius: 2, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 180, cursor: "pointer", position: "relative" }}>
+                {formData.bannerImage ? (
+                  <>
+                    <Image
+                      src={formData.bannerImage}
+                      alt="Banner preview"
+                      fill
+                      style={{ objectFit: "cover", borderRadius: 8 }}
+                    />
+                    <Box sx={{ position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)" }}>
+                      <CldUploadWidget
+                        uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                        folder={process.env.NEXT_PUBLIC_CLOUDINARY_FOLDER}
+                        onSuccess={(result) => handleCloudinaryUpload(result, "bannerImage")}
+                      >
+                        {({ open }) => (
+                          <Button
+                            variant="contained"
+                            size="small"
+                            onClick={() => open()}
+                            sx={{ bgcolor: "#39FF14", color: "#000", "&:hover": { bgcolor: "#2dd610" } }}
+                          >
+                            Change Banner
+                          </Button>
+                        )}
+                      </CldUploadWidget>
+                    </Box>
+                  </>
+                ) : (
+                  <CldUploadWidget
+                    uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                    folder={process.env.NEXT_PUBLIC_CLOUDINARY_FOLDER}
+                    onSuccess={(result) => handleCloudinaryUpload(result, "bannerImage")}
+                  >
+                    {({ open }) => (
+                      <Box onClick={() => open()} sx={{ textAlign: "center" }}>
+                        <Upload size={32} color="#9E9E9E" />
+                        <Typography sx={{ color: "#9E9E9E", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem", mt: 1 }}>
+                          Upload Banner Image
+                        </Typography>
+                      </Box>
+                    )}
+                  </CldUploadWidget>
+                )}
+              </Card>
+            </Box>
+            <Divider sx={{ borderColor: "rgba(57,255,20,0.1)", my: 1 }} />
+            <Typography sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
+              Settings
+            </Typography>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Typography sx={{ color: "#fff", fontFamily: "Poppins, sans-serif" }}>Featured Category</Typography>
+              <Switch
+                checked={formData.featured || false}
+                onChange={(e) => handleSwitchChange("featured", e.target.checked)}
+                sx={{ "& .MuiSwitch-switchBase.Mui-checked": { color: "#39FF14" }, "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { backgroundColor: "#39FF14" } }}
+              />
+            </Box>
             <TextField
-              label="Description"
+              label="Sort Order"
+              name="sortOrder"
+              type="number"
               fullWidth
-              multiline
-              rows={3}
-              defaultValue={selectedCategory?.description}
+              value={formData.sortOrder || 0}
+              onChange={handleFormChange}
               sx={{
                 "& .MuiOutlinedInput-root": {
                   color: "#fff",
@@ -1036,7 +1352,10 @@ export default function AdminCategoriesPage() {
             </Typography>
             <TextField
               label="SEO Title"
+              name="seoTitle"
               fullWidth
+              value={formData.seoTitle || ""}
+              onChange={handleFormChange}
               sx={{
                 "& .MuiOutlinedInput-root": {
                   color: "#fff",
@@ -1060,64 +1379,12 @@ export default function AdminCategoriesPage() {
             />
             <TextField
               label="SEO Description"
+              name="seoDescription"
               fullWidth
               multiline
               rows={2}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  color: "#fff",
-                  "& fieldset": {
-                    borderColor: "rgba(57,255,20,0.2)",
-                  },
-                  "&:hover fieldset": {
-                    borderColor: "rgba(57,255,20,0.4)",
-                  },
-                  "&.Mui-focused fieldset": {
-                    borderColor: "#39FF14",
-                  },
-                },
-                "& .MuiInputLabel-root": {
-                  color: "#9E9E9E",
-                  "&.Mui-focused": {
-                    color: "#39FF14",
-                  },
-                },
-              }}
-            />
-            <Divider sx={{ borderColor: "rgba(57,255,20,0.1)", my: 1 }} />
-            <Typography sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
-              Media
-            </Typography>
-            <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
-              <Card sx={{ flex: 1, p: 2, bgcolor: "rgba(5,5,5,0.5)", border: "1px dashed rgba(57,255,20,0.2)", borderRadius: 2, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 120, cursor: "pointer" }}>
-                <Upload size={28} color="#9E9E9E" />
-                <Typography sx={{ color: "#9E9E9E", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem", mt: 1 }}>
-                  Upload Category Image
-                </Typography>
-              </Card>
-              <Card sx={{ flex: 1, p: 2, bgcolor: "rgba(5,5,5,0.5)", border: "1px dashed rgba(57,255,20,0.2)", borderRadius: 2, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 120, cursor: "pointer" }}>
-                <Upload size={28} color="#9E9E9E" />
-                <Typography sx={{ color: "#9E9E9E", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem", mt: 1 }}>
-                  Upload Banner Image
-                </Typography>
-              </Card>
-            </Box>
-            <Divider sx={{ borderColor: "rgba(57,255,20,0.1)", my: 1 }} />
-            <Typography sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
-              Settings
-            </Typography>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Typography sx={{ color: "#fff", fontFamily: "Poppins, sans-serif" }}>Featured Category</Typography>
-              <Switch defaultChecked={selectedCategory?.featured} sx={{ "& .MuiSwitch-switchBase.Mui-checked": { color: "#39FF14" }, "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { backgroundColor: "#39FF14" } }} />
-            </Box>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Typography sx={{ color: "#fff", fontFamily: "Poppins, sans-serif" }}>Active</Typography>
-              <Switch defaultChecked={selectedCategory?.status === "Active"} sx={{ "& .MuiSwitch-switchBase.Mui-checked": { color: "#39FF14" }, "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { backgroundColor: "#39FF14" } }} />
-            </Box>
-            <TextField
-              label="Sort Order"
-              type="number"
-              fullWidth
+              value={formData.seoDescription || ""}
+              onChange={handleFormChange}
               sx={{
                 "& .MuiOutlinedInput-root": {
                   color: "#fff",
@@ -1147,7 +1414,7 @@ export default function AdminCategoriesPage() {
           </Button>
           <Button
             variant="contained"
-            onClick={() => setOpenModal(false)}
+            onClick={handleSubmit}
             sx={{
               bgcolor: "#39FF14",
               color: "#000",
@@ -1183,7 +1450,7 @@ export default function AdminCategoriesPage() {
           </Button>
           <Button
             variant="contained"
-            onClick={() => setOpenDeleteModal(false)}
+            onClick={handleDelete}
             sx={{
               bgcolor: "#FF4D4F",
               color: "#fff",
@@ -1199,6 +1466,22 @@ export default function AdminCategoriesPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={5000}
+        onClose={() => setSnackbar((current) => ({ ...current, open: false }))}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          severity={snackbar.severity}
+          onClose={() => setSnackbar((current) => ({ ...current, open: false }))}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

@@ -1,33 +1,38 @@
 "use client";
 
-import { Box, Container, Typography, Grid, Card, CardMedia, CardContent, Button } from "@mui/material";
+import { Box, Container, Typography, Grid, Card, CardContent, Button, CircularProgress } from "@mui/material";
 import { motion } from "framer-motion";
 import Image from "next/image";
-
-const categories = [
-  {
-    title: "Men",
-    description: "Premium streetwear for the modern man",
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop&q=60",
-  },
-  {
-    title: "Women",
-    description: "Elevated essentials for her",
-    image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=60",
-  },
-  {
-    title: "Hoodies",
-    description: "Comfort meets style",
-    image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=800&auto=format&fit=crop&q=60",
-  },
-  {
-    title: "Accessories",
-    description: "Complete your look",
-    image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&auto=format&fit=crop&q=60",
-  },
-];
+import { useState, useEffect } from "react";
+import type { Category } from "@/types/category";
+import { fetchCategories } from "@/lib/categories";
 
 export default function Categories() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const getCategories = async () => {
+      try {
+        const data = await fetchCategories("Active");
+        setCategories(data);
+      } catch (error) {
+        console.error("Failed to fetch categories:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    getCategories();
+  }, []);
+
+  if (loading) {
+    return (
+      <Box sx={{ py: 12, display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <CircularProgress sx={{ color: "#39FF14" }} />
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ py: 12 }}>
       <Container maxWidth="xl">
@@ -45,7 +50,7 @@ export default function Categories() {
 
         <Grid container spacing={4}>
           {categories.map((category, index) => (
-            <Grid item xs={12} sm={6} lg={3} key={category.title}>
+            <Grid item xs={12} sm={6} lg={3} key={category.id || category.name}>
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -69,13 +74,28 @@ export default function Categories() {
                   }}
                 >
                   <Box sx={{ position: "relative", height: "350px", overflow: "hidden" }}>
-                    <Image
-                      src={category.image}
-                      alt={category.title}
-                      fill
-                      style={{ objectFit: "cover", transition: "transform 0.5s ease" }}
-                      className="group-hover:scale-110"
-                    />
+                    {category.image ? (
+                      <Image
+                        src={category.image}
+                        alt={category.name}
+                        fill
+                        style={{ objectFit: "cover", transition: "transform 0.5s ease" }}
+                        className="group-hover:scale-110"
+                      />
+                    ) : (
+                      <Box
+                        sx={{
+                          width: "100%",
+                          height: "100%",
+                          bgcolor: "#1a1a1a",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Typography sx={{ color: "#9E9E9E" }}>No Image</Typography>
+                      </Box>
+                    )}
                     <Box
                       sx={{
                         position: "absolute",
@@ -101,7 +121,7 @@ export default function Categories() {
                         mb: 1,
                       }}
                     >
-                      {category.title}
+                      {category.name}
                     </Typography>
                     <Typography variant="body2" sx={{ color: "#A0A0A0", mb: 3 }}>
                       {category.description}
