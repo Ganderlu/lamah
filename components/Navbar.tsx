@@ -60,29 +60,97 @@ export default function Navbar() {
 
   const drawer = (
     <Box
-      sx={{ width: 280, bgcolor: "#050505", height: "100%" }}
+      sx={{
+        width: 280,
+        bgcolor: "#090909",
+        height: "100%",
+        borderLeft: "1px solid rgba(57, 255, 20, 0.15)",
+        display: "flex",
+        flexDirection: "column",
+      }}
       role="presentation"
       onClick={handleDrawerToggle}
       onKeyDown={handleDrawerToggle}
     >
-      <Box sx={{ p: 3, display: "flex", justifyContent: "flex-end" }}>
+      <Box sx={{ p: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Link href="/" passHref>
+          <Box sx={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+            <Image
+              src="/images/lamahhlogo.png"
+              alt="Lamah Clothing Co."
+              width={100}
+              height={40}
+              style={{ objectFit: "contain" }}
+            />
+          </Box>
+        </Link>
         <IconButton onClick={handleDrawerToggle} sx={{ color: "#fff" }}>
           <X />
         </IconButton>
       </Box>
-      <List>
+
+      <Box sx={{ height: 1, bgcolor: "rgba(57, 255, 20, 0.15)", mx: 3 }} />
+
+      <List sx={{ flex: 1, py: 2, px: 2 }}>
         {navLinks.map((link) => (
-          <ListItem key={link.name} disablePadding>
+          <ListItem key={link.name} disablePadding sx={{ mb: 1 }}>
             <ListItemButton
               component={Link}
               href={link.href}
-              sx={{ color: "#fff", py: 2 }}
+              sx={{
+                color: "#fff",
+                py: 2,
+                px: 3,
+                borderRadius: "18px",
+                "&:hover": {
+                  bgcolor: "rgba(57, 255, 20, 0.08)",
+                  color: "#39FF14",
+                },
+                "& .MuiListItemText-primary": {
+                  fontFamily: "Poppins, sans-serif",
+                  fontSize: "16px",
+                  fontWeight: 500,
+                },
+              }}
             >
               <ListItemText primary={link.name} />
             </ListItemButton>
           </ListItem>
         ))}
       </List>
+
+      <Box sx={{ p: 3, borderTop: "1px solid rgba(57, 255, 20, 0.15)" }}>
+        <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
+          <Link href="/wishlist" passHref>
+            <IconButton sx={{ color: "#fff", "&:hover": { color: "#39FF14" } }}>
+              <Heart size={22} />
+            </IconButton>
+          </Link>
+          <Link href="/cart" passHref>
+            <IconButton sx={{ position: "relative" }}>
+              <Badge
+                badgeContent={totalItems}
+                color="primary"
+                sx={{
+                  "& .MuiBadge-badge": {
+                    bgcolor: "#39FF14",
+                    color: "#000",
+                    fontWeight: 700,
+                    fontSize: "11px",
+                  },
+                }}
+              >
+                <ShoppingCart size={22} color="#fff" />
+              </Badge>
+            </IconButton>
+          </Link>
+          <Link href="/login" passHref>
+            <IconButton sx={{ color: "#fff", "&:hover": { color: "#39FF14" } }}>
+              <User size={22} />
+            </IconButton>
+          </Link>
+        </Box>
+      </Box>
     </Box>
   );
 
