@@ -1291,7 +1291,7 @@ export default function AdminCategoriesPage() {
                 ) : (
                   <CldUploadWidget
                     uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
-                    folder={process.env.NEXT_PUBLIC_CLOUDINARY_FOLDER}
+                    options={{ folder: process.env.NEXT_PUBLIC_CLOUDINARY_FOLDER }}
                     onSuccess={(result) => handleCloudinaryUpload(result, "bannerImage")}
                   >
                     {({ open }) => (
