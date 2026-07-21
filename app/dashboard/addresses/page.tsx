@@ -332,7 +332,7 @@ export default function AddressesPage() {
               textAlign: "center",
             }}
           >
-            <MapPin size={80} color="#39FF14" strokeWidth={1.5} sx={{ mb: 4 }} />
+            <Box sx={{ mb: 4 }}><MapPin size={80} color="#39FF14" strokeWidth={1.5} /></Box>
             <Typography
               variant="h4"
               sx={{
