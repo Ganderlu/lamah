@@ -5,7 +5,7 @@ import {
   Typography,
   Card,
   CardContent,
-  Grid,
+  Grid2 as Grid,
   Button,
   TextField,
   Divider,
