@@ -1,5 +1,4 @@
 "use client";
-
 import {
   Box,
   AppBar,
@@ -15,8 +14,6 @@ import {
   Typography,
 } from "@mui/material";
 import {
-  ArrowLeft,
-  Bell,
   Heart,
   ShoppingCart,
   User,
@@ -26,24 +23,32 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store/auth";
+import { useCartStore } from "@/lib/store/cart";
+import { useWishlistStore } from "@/lib/store/wishlist";
 import { auth } from "@/firebase/client";
+import { signOut } from "firebase/auth";
 import Link from "next/link";
 
 export default function UserTopNavbar() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const router = useRouter();
-  const pathname = usePathname();
-  const isOrdersPage = pathname === "/dashboard/orders";
   const profile = useAuthStore((state) => state.profile);
+  const cartItems = useCartStore((state) => state.items);
+  const wishlistItems = useWishlistStore((state) => state.items);
+  const clearProfile = useAuthStore((state) => state.clearProfile);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const displayName =
     [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") ||
     auth.currentUser?.displayName ||
     "Patrick";
-  const membershipLevel = profile?.membershipLevel || "Gold Member";
+  const membershipLevel = profile?.membershipLevel || "Silver Member";
+
+  // Calculate badge counts
+  const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+  const wishlistCount = wishlistItems.length;
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -51,6 +56,16 @@ export default function UserTopNavbar() {
 
   const handleClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      clearProfile();
+      router.push("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   return (
@@ -72,61 +87,31 @@ export default function UserTopNavbar() {
             flex: 1,
             gap: 1.5,
           }}
-        >
-          {!isOrdersPage && (
-            <>
-              <IconButton
-                aria-label="Go back"
-                onClick={() => router.back()}
-                sx={{
-                  color: "#fff",
-                  border: "1px solid rgba(57,255,20,0.14)",
-                  bgcolor: "#111111",
-                  width: 42,
-                  height: 42,
-                  "&:hover": {
-                    bgcolor: "rgba(57,255,20,0.06)",
-                    borderColor: "rgba(57,255,20,0.3)",
-                  },
-                }}
-              >
-                <ArrowLeft size={18} />
-              </IconButton>
-              {!isMobile && (
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: "#A0A0A0",
-                    fontFamily: "Poppins, sans-serif",
-                  }}
-                >
-                  My Orders
-                </Typography>
-              )}
-            </>
-          )}
-        </Box>
+        ></Box>
 
         {/* Right Side - Actions */}
         <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1, md: 2 } }}>
-          <IconButton sx={{ color: "#fff" }}>
+          <IconButton 
+            sx={{ color: "#fff" }} 
+            onClick={() => router.push("/shop")}
+          >
             <Search size={20} />
           </IconButton>
 
-          <IconButton sx={{ color: "#fff" }}>
-            <Badge badgeContent={3} color="error">
-              <Bell size={20} />
-            </Badge>
-          </IconButton>
-
-          <IconButton sx={{ color: "#fff" }}>
-            <Badge badgeContent={5} color="success">
+          <IconButton 
+            sx={{ color: "#fff" }}
+            onClick={() => router.push("/wishlist")}
+          >
+            <Badge badgeContent={wishlistCount > 0 ? wishlistCount : null} color="success">
               <Heart size={20} />
             </Badge>
           </IconButton>
 
-          <IconButton sx={{ color: "#fff" }}>
-            <Badge badgeContent={2} color="primary">
+          <IconButton 
+            sx={{ color: "#fff" }}
+            onClick={() => router.push("/cart")}
+          >
+            <Badge badgeContent={cartCount > 0 ? cartCount : null} color="primary">
               <ShoppingCart size={20} />
             </Badge>
           </IconButton>
@@ -214,7 +199,13 @@ export default function UserTopNavbar() {
               <Settings size={18} style={{ marginRight: 8 }} />
               Settings
             </MenuItem>
-            <MenuItem component={Link} href="/" onClick={handleClose} sx={{ color: "#FF4D4F" }}>
+            <MenuItem 
+              onClick={() => {
+                handleClose();
+                handleLogout();
+              }} 
+              sx={{ color: "#FF4D4F" }}
+            >
               <LogOut size={18} style={{ marginRight: 8 }} />
               Logout
             </MenuItem>

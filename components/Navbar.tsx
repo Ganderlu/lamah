@@ -27,6 +27,9 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useCartStore } from "@/lib/store/cart";
+import { useAuthStore } from "@/lib/store/auth";
+import { auth } from "@/firebase/client";
+import { onAuthStateChanged } from "firebase/auth";
 
 const navLinks = [
   { name: "Home", href: "/" },
@@ -42,6 +45,7 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const getTotalItems = useCartStore((state) => state.getTotalItems);
   const totalItems = getTotalItems();
 
@@ -51,7 +55,15 @@ export default function Navbar() {
       setScrolled(window.scrollY > 50);
     };
     window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsLoggedIn(!!user);
+    });
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      unsubscribe();
+    };
   }, []);
 
   const handleDrawerToggle = () => {
@@ -144,8 +156,8 @@ export default function Navbar() {
               </Badge>
             </IconButton>
           </Link>
-          <Link href="/login" passHref>
-            <IconButton sx={{ color: "#fff", "&:hover": { color: "#39FF14" } }}>
+          <Link href={isLoggedIn ? "/dashboard/orders" : "/login"} passHref>
+            <IconButton sx={{ color: isLoggedIn ? "#39FF14" : "#fff", "&:hover": { color: isLoggedIn ? "#39FF14" : "#39FF14" } }}>
               <User size={22} />
             </IconButton>
           </Link>
@@ -215,11 +227,6 @@ export default function Navbar() {
             <IconButton sx={{ color: "#fff" }} aria-label="search">
               <Search size={20} />
             </IconButton>
-            <Link href="/login" passHref>
-              <IconButton sx={{ color: "#fff" }} aria-label="account">
-                <User size={20} />
-              </IconButton>
-            </Link>
             <Link href="/wishlist" passHref>
               <IconButton sx={{ color: "#fff" }} aria-label="wishlist">
                 <Heart size={20} />
@@ -240,6 +247,11 @@ export default function Navbar() {
                 >
                   <ShoppingCart size={20} />
                 </Badge>
+              </IconButton>
+            </Link>
+            <Link href={isLoggedIn ? "/dashboard/orders" : "/login"} passHref>
+              <IconButton sx={{ color: isLoggedIn ? "#39FF14" : "#fff" }} aria-label="account">
+                <User size={20} />
               </IconButton>
             </Link>
 

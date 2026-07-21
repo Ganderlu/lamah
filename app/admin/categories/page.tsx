@@ -58,18 +58,27 @@ import {
   Clock,
   XCircle,
   Activity,
+  Image as ImageIcon,
+  DollarSign,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { CldUploadWidget } from "next-cloudinary";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import type { Category } from "@/types/category";
+import type { Product } from "@/types/product";
 import {
   fetchCategories,
   createCategory,
   updateCategory,
   deleteCategory,
 } from "@/lib/categories";
+import {
+  fetchProductsByCategory,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+} from "@/lib/products";
 import Image from "next/image";
 
 // Status Chip Component
@@ -135,6 +144,34 @@ export default function AdminCategoriesPage() {
     image: "",
     bannerImage: "",
   });
+
+  // Product modal state
+  const [openProductModal, setOpenProductModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [productFormData, setProductFormData] = useState<Partial<Product>>({
+    name: "",
+    sku: "",
+    description: "",
+    category: "",
+    collection: "",
+    brand: "",
+    price: 0,
+    discountPrice: undefined,
+    stock: 0,
+    weight: undefined,
+    sizes: [],
+    colors: [],
+    tags: [],
+    thumbnail: "",
+    gallery: [],
+    featured: false,
+    status: "Draft",
+  });
+  const [tempSizes, setTempSizes] = useState("");
+  const [tempColors, setTempColors] = useState("");
+  const [tempTags, setTempTags] = useState("");
+  const [productsForCategory, setProductsForCategory] = useState<Product[]>([]);
+  const [viewingCategoryProducts, setViewingCategoryProducts] = useState<Category | null>(null);
 
   // Fetch categories on load
   const loadCategories = async () => {
@@ -264,6 +301,161 @@ export default function AdminCategoriesPage() {
         open: true,
         message: "Image uploaded successfully",
         severity: "success",
+      });
+    }
+  };
+
+  // Product management functions
+  const handleOpenProductCreateModal = (category: Category) => {
+    setSelectedProduct(null);
+    setProductFormData({
+      name: "",
+      sku: "",
+      description: "",
+      category: category.name,
+      collection: "",
+      brand: "",
+      price: 0,
+      discountPrice: undefined,
+      stock: 0,
+      weight: undefined,
+      sizes: [],
+      colors: [],
+      tags: [],
+      thumbnail: "",
+      gallery: [],
+      featured: false,
+      status: "Draft",
+    });
+    setTempSizes("");
+    setTempColors("");
+    setTempTags("");
+    setOpenProductModal(true);
+  };
+
+  const handleOpenProductEditModal = (product: Product) => {
+    setSelectedProduct(product);
+    setProductFormData({
+      ...product,
+    });
+    setTempSizes(product.sizes.join(", "));
+    setTempColors(product.colors.join(", "));
+    setTempTags(product.tags.join(", "));
+    setOpenProductModal(true);
+  };
+
+  const handleProductFormChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value, type } = e.target;
+    setProductFormData((prev) => ({
+      ...prev,
+      [name]: type === "number" ? Number(value) : value,
+    }));
+  };
+
+  const handleProductSwitchChange = (name: string, checked: boolean) => {
+    setProductFormData((prev) => ({
+      ...prev,
+      [name]: checked,
+    }));
+  };
+
+  const handleProductCloudinaryUpload = (result: any, fieldName: "thumbnail" | "gallery", index?: number) => {
+    if (result.event === "success" && result.info) {
+      if (fieldName === "thumbnail") {
+        setProductFormData((prev) => ({
+          ...prev,
+          thumbnail: result.info.secure_url,
+        }));
+      } else {
+        setProductFormData((prev) => ({
+          ...prev,
+          gallery: [...(prev.gallery || []), result.info.secure_url],
+        }));
+      }
+      setSnackbar({
+        open: true,
+        message: "Image uploaded successfully",
+        severity: "success",
+      });
+    }
+  };
+
+  const handleProductSubmit = async () => {
+    try {
+      const finalData = {
+        ...productFormData,
+        sizes: tempSizes.split(",").map((s) => s.trim()).filter(Boolean),
+        colors: tempColors.split(",").map((c) => c.trim()).filter(Boolean),
+        tags: tempTags.split(",").map((t) => t.trim()).filter(Boolean),
+      };
+
+      if (selectedProduct?.id) {
+        await updateProduct(selectedProduct.id, finalData);
+        setSnackbar({
+          open: true,
+          message: "Product updated successfully",
+          severity: "success",
+        });
+      } else {
+        await createProduct(finalData as Omit<Product, "id" | "createdAt" | "updatedAt">);
+        setSnackbar({
+          open: true,
+          message: "Product created successfully",
+          severity: "success",
+        });
+      }
+      setOpenProductModal(false);
+      if (viewingCategoryProducts) {
+        const products = await fetchProductsByCategory(viewingCategoryProducts.name);
+        setProductsForCategory(products);
+      }
+      loadCategories();
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Failed to save product",
+        severity: "error",
+      });
+    }
+  };
+
+  const handleProductDelete = async () => {
+    if (selectedProduct?.id) {
+      try {
+        await deleteProduct(selectedProduct.id);
+        setSnackbar({
+          open: true,
+          message: "Product deleted successfully",
+          severity: "success",
+        });
+        setOpenDeleteModal(false);
+        if (viewingCategoryProducts) {
+          const products = await fetchProductsByCategory(viewingCategoryProducts.name);
+          setProductsForCategory(products);
+        }
+        loadCategories();
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: "Failed to delete product",
+          severity: "error",
+        });
+      }
+    }
+  };
+
+  const handleViewProducts = async (category: Category) => {
+    setViewingCategoryProducts(category);
+    try {
+      const products = await fetchProductsByCategory(category.name);
+      setProductsForCategory(products);
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Failed to load products",
+        severity: "error",
       });
     }
   };
@@ -794,6 +986,24 @@ export default function AdminCategoriesPage() {
                               </TableCell>
                               <TableCell sx={{ py: 2 }}>
                                 <Box sx={{ display: "flex", gap: 0.5 }}>
+                                  <Tooltip title="View Products">
+                                    <IconButton
+                                      size="small"
+                                      sx={{ color: "#9E9E9E" }}
+                                      onClick={() => handleViewProducts(category)}
+                                    >
+                                      <Eye size={16} />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="Add Product">
+                                    <IconButton
+                                      size="small"
+                                      sx={{ color: "#39FF14" }}
+                                      onClick={() => handleOpenProductCreateModal(category)}
+                                    >
+                                      <Plus size={16} />
+                                    </IconButton>
+                                  </Tooltip>
                                   <Tooltip title="Edit">
                                     <IconButton
                                       size="small"
@@ -944,157 +1154,257 @@ export default function AdminCategoriesPage() {
           </motion.div>
         </Grid>
 
-        {/* Right: Analytics */}
+        {/* Right: Analytics or Products View */}
         <Grid item xs={12} lg={4}>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            {/* Category Overview Widget */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <Card sx={{ background: "#111111", border: "1px solid rgba(57,255,20,0.15)", borderRadius: 3 }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography
-                    variant="h5"
-                    sx={{
-                      color: "#fff",
-                      fontWeight: 600,
-                      fontFamily: "Poppins, sans-serif",
-                      mb: 3,
-                    }}
-                  >
-                    Category Overview
-                  </Typography>
-                  <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
-                    <Box sx={{ position: "relative", width: 160, height: 160, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <svg width="160" height="160" viewBox="0 0 160 160">
-                        <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(57,255,20,0.1)" strokeWidth="16" />
-                        {totalCategories > 0 && (
-                          <>
-                            <circle
-                              cx="80"
-                              cy="80"
-                              r="70"
-                              fill="none"
-                              stroke="#39FF14"
-                              strokeWidth="16"
-                              strokeDasharray={`${(activeCategories / totalCategories) * 2 * Math.PI * 70} ${2 * Math.PI * 70}`}
-                              strokeLinecap="round"
-                              transform="rotate(-90 80 80)"
-                            />
-                            <circle
-                              cx="80"
-                              cy="80"
-                              r="70"
-                              fill="none"
-                              stroke="#FF4D4F"
-                              strokeWidth="16"
-                              strokeDasharray={`${(inactiveCategories / totalCategories) * 2 * Math.PI * 70} ${2 * Math.PI * 70}`}
-                              strokeDashoffset={`${-(activeCategories / totalCategories) * 2 * Math.PI * 70}`}
-                              strokeLinecap="round"
-                              transform="rotate(-90 80 80)"
-                            />
-                          </>
-                        )}
-                      </svg>
-                      <Box sx={{ position: "absolute", textAlign: "center" }}>
-                        <Typography sx={{ color: "#fff", fontWeight: 700, fontFamily: "Inter, sans-serif", fontSize: "2rem" }}>
-                          {totalCategories}
-                        </Typography>
-                        <Typography sx={{ color: "#9E9E9E", fontSize: "0.75rem", fontFamily: "Poppins, sans-serif" }}>
-                          Total
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Box>
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "#39FF14" }} />
-                        <Typography sx={{ color: "#fff", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem" }}>
-                          Active
-                        </Typography>
-                      </Box>
-                      <Typography sx={{ color: "#9E9E9E", fontFamily: "Inter, sans-serif", fontWeight: 600, fontSize: "0.875rem" }}>
-                        {activeCategories} ({totalCategories > 0 ? Math.round((activeCategories / totalCategories) * 100) : 0}%)
+            {viewingCategoryProducts ? (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <Card sx={{ background: "#111111", border: "1px solid rgba(57,255,20,0.15)", borderRadius: 3 }}>
+                  <CardContent sx={{ p: 3 }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+                      <Typography
+                        variant="h5"
+                        sx={{
+                          color: "#fff",
+                          fontWeight: 600,
+                          fontFamily: "Poppins, sans-serif",
+                        }}
+                      >
+                        {viewingCategoryProducts.name} Products
                       </Typography>
+                      <Button
+                        onClick={() => setViewingCategoryProducts(null)}
+                        sx={{ color: "#9E9E9E", textTransform: "none", fontFamily: "Poppins, sans-serif" }}
+                      >
+                        Back
+                      </Button>
                     </Box>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "#FF4D4F" }} />
-                        <Typography sx={{ color: "#fff", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem" }}>
-                          Inactive
-                        </Typography>
-                      </Box>
-                      <Typography sx={{ color: "#9E9E9E", fontFamily: "Inter, sans-serif", fontWeight: 600, fontSize: "0.875rem" }}>
-                        {inactiveCategories} ({totalCategories > 0 ? Math.round((inactiveCategories / totalCategories) * 100) : 0}%)
-                      </Typography>
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Top Categories Widget */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.25 }}
-            >
-              <Card sx={{ background: "#111111", border: "1px solid rgba(57,255,20,0.15)", borderRadius: 3 }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography
-                    variant="h5"
-                    sx={{
-                      color: "#fff",
-                      fontWeight: 600,
-                      fontFamily: "Poppins, sans-serif",
-                      mb: 3,
-                    }}
-                  >
-                    Top Categories (by products)
-                  </Typography>
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    {topCategories.map((cat, index) => {
-                      const maxCount = topCategories[0]?.productCount || 1;
-                      const percentage = ((cat.productCount || 0) / maxCount) * 100;
-                      return (
-                        <Box key={cat.id || index}>
-                          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
-                            <Typography sx={{ color: "#fff", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem" }}>
-                              {cat.name}
-                            </Typography>
-                            <Typography sx={{ color: "#9E9E9E", fontFamily: "Inter, sans-serif", fontWeight: 600, fontSize: "0.875rem" }}>
-                              {cat.productCount || 0}
-                            </Typography>
-                          </Box>
-                          <Box
-                            sx={{
-                              height: 6,
-                              bgcolor: "rgba(57,255,20,0.1)",
-                              borderRadius: 3,
-                              overflow: "hidden",
-                            }}
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 2, maxHeight: "600px", overflowY: "auto" }}>
+                      {productsForCategory.length === 0 ? (
+                        <Box sx={{ textAlign: "center", py: 4 }}>
+                          <Typography sx={{ color: "#9E9E9E", fontFamily: "Poppins, sans-serif" }}>
+                            No products in this category yet.
+                          </Typography>
+                          <Button
+                            variant="contained"
+                            startIcon={<Plus size={16} />}
+                            onClick={() => handleOpenProductCreateModal(viewingCategoryProducts)}
+                            sx={{ mt: 2, bgcolor: "#39FF14", color: "#000", "&:hover": { bgcolor: "#2dd610" } }}
                           >
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${percentage}%` }}
-                              transition={{ duration: 0.8, delay: 0.3 + index * 0.1 }}
-                              style={{
-                                height: "100%",
-                                background: "#39FF14",
-                                borderRadius: 3,
-                              }}
-                            />
+                            Add Product
+                          </Button>
+                        </Box>
+                      ) : (
+                        productsForCategory.map((product) => (
+                          <Box key={product.id} sx={{ p: 2, bgcolor: "rgba(5,5,5,0.5)", borderRadius: 2, border: "1px solid rgba(57,255,20,0.1)" }}>
+                            <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+                              {product.thumbnail ? (
+                                <Image
+                                  src={product.thumbnail}
+                                  alt={product.name}
+                                  width={60}
+                                  height={60}
+                                  style={{ borderRadius: 8, objectFit: "cover" }}
+                                />
+                              ) : (
+                                <Avatar sx={{ width: 60, height: 60, borderRadius: 2, bgcolor: "#1a1a1a" }}>
+                                  <ImageIcon size={24} color="#9E9E9E" />
+                                </Avatar>
+                              )}
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography sx={{ color: "#fff", fontWeight: 600, fontFamily: "Poppins, sans-serif", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                  {product.name}
+                                </Typography>
+                                <Typography sx={{ color: "#9E9E9E", fontSize: "0.75rem", fontFamily: "Poppins, sans-serif" }}>
+                                  SKU: {product.sku}
+                                </Typography>
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
+                                  <Typography sx={{ color: "#fff", fontWeight: 700, fontFamily: "Inter, sans-serif" }}>
+                                    ${product.price.toLocaleString()}
+                                  </Typography>
+                                  {product.discountPrice && (
+                                    <Typography sx={{ color: "#39FF14", fontWeight: 600, fontFamily: "Inter, sans-serif", fontSize: "0.875rem" }}>
+                                      ${product.discountPrice.toLocaleString()}
+                                    </Typography>
+                                  )}
+                                  <StatusChip status={product.status} />
+                                </Box>
+                              </Box>
+                              <Box sx={{ display: "flex", gap: 0.5 }}>
+                                <Tooltip title="Edit">
+                                  <IconButton
+                                    size="small"
+                                    sx={{ color: "#9E9E9E" }}
+                                    onClick={() => handleOpenProductEditModal(product)}
+                                  >
+                                    <Edit size={16} />
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
+                            </Box>
+                          </Box>
+                        ))
+                      )}
+                    </Box>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ) : (
+              <>
+                {/* Category Overview Widget */}
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
+                  <Card sx={{ background: "#111111", border: "1px solid rgba(57,255,20,0.15)", borderRadius: 3 }}>
+                    <CardContent sx={{ p: 3 }}>
+                      <Typography
+                        variant="h5"
+                        sx={{
+                          color: "#fff",
+                          fontWeight: 600,
+                          fontFamily: "Poppins, sans-serif",
+                          mb: 3,
+                        }}
+                      >
+                        Category Overview
+                      </Typography>
+                      <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+                        <Box sx={{ position: "relative", width: 160, height: 160, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg width="160" height="160" viewBox="0 0 160 160">
+                            <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(57,255,20,0.1)" strokeWidth="16" />
+                            {totalCategories > 0 && (
+                              <>
+                                <circle
+                                  cx="80"
+                                  cy="80"
+                                  r="70"
+                                  fill="none"
+                                  stroke="#39FF14"
+                                  strokeWidth="16"
+                                  strokeDasharray={`${(activeCategories / totalCategories) * 2 * Math.PI * 70} ${2 * Math.PI * 70}`}
+                                  strokeLinecap="round"
+                                  transform="rotate(-90 80 80)"
+                                />
+                                <circle
+                                  cx="80"
+                                  cy="80"
+                                  r="70"
+                                  fill="none"
+                                  stroke="#FF4D4F"
+                                  strokeWidth="16"
+                                  strokeDasharray={`${(inactiveCategories / totalCategories) * 2 * Math.PI * 70} ${2 * Math.PI * 70}`}
+                                  strokeDashoffset={`${-(activeCategories / totalCategories) * 2 * Math.PI * 70}`}
+                                  strokeLinecap="round"
+                                  transform="rotate(-90 80 80)"
+                                />
+                              </>
+                            )}
+                          </svg>
+                          <Box sx={{ position: "absolute", textAlign: "center" }}>
+                            <Typography sx={{ color: "#fff", fontWeight: 700, fontFamily: "Inter, sans-serif", fontSize: "2rem" }}>
+                              {totalCategories}
+                            </Typography>
+                            <Typography sx={{ color: "#9E9E9E", fontSize: "0.75rem", fontFamily: "Poppins, sans-serif" }}>
+                              Total
+                            </Typography>
                           </Box>
                         </Box>
-                      );
-                    })}
-                  </Box>
-                </CardContent>
-              </Card>
-            </motion.div>
+                      </Box>
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "#39FF14" }} />
+                            <Typography sx={{ color: "#fff", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem" }}>
+                              Active
+                            </Typography>
+                          </Box>
+                          <Typography sx={{ color: "#9E9E9E", fontFamily: "Inter, sans-serif", fontWeight: 600, fontSize: "0.875rem" }}>
+                            {activeCategories} ({totalCategories > 0 ? Math.round((activeCategories / totalCategories) * 100) : 0}%)
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "#FF4D4F" }} />
+                            <Typography sx={{ color: "#fff", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem" }}>
+                              Inactive
+                            </Typography>
+                          </Box>
+                          <Typography sx={{ color: "#9E9E9E", fontFamily: "Inter, sans-serif", fontWeight: 600, fontSize: "0.875rem" }}>
+                            {inactiveCategories} ({totalCategories > 0 ? Math.round((inactiveCategories / totalCategories) * 100) : 0}%)
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                {/* Top Categories Widget */}
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: 0.25 }}
+                >
+                  <Card sx={{ background: "#111111", border: "1px solid rgba(57,255,20,0.15)", borderRadius: 3 }}>
+                    <CardContent sx={{ p: 3 }}>
+                      <Typography
+                        variant="h5"
+                        sx={{
+                          color: "#fff",
+                          fontWeight: 600,
+                          fontFamily: "Poppins, sans-serif",
+                          mb: 3,
+                        }}
+                      >
+                        Top Categories (by products)
+                      </Typography>
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        {topCategories.map((cat, index) => {
+                          const maxCount = topCategories[0]?.productCount || 1;
+                          const percentage = ((cat.productCount || 0) / maxCount) * 100;
+                          return (
+                            <Box key={cat.id || index}>
+                              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                                <Typography sx={{ color: "#fff", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem" }}>
+                                  {cat.name}
+                                </Typography>
+                                <Typography sx={{ color: "#9E9E9E", fontFamily: "Inter, sans-serif", fontWeight: 600, fontSize: "0.875rem" }}>
+                                  {cat.productCount || 0}
+                                </Typography>
+                              </Box>
+                              <Box
+                                sx={{
+                                  height: 6,
+                                  bgcolor: "rgba(57,255,20,0.1)",
+                                  borderRadius: 3,
+                                  overflow: "hidden",
+                                }}
+                              >
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${percentage}%` }}
+                                  transition={{ duration: 0.8, delay: 0.3 + index * 0.1 }}
+                                  style={{
+                                    height: "100%",
+                                    background: "#39FF14",
+                                    borderRadius: 3,
+                                  }}
+                                />
+                              </Box>
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </>
+            )}
           </Box>
         </Grid>
       </Grid>
@@ -1463,6 +1773,541 @@ export default function AdminCategoriesPage() {
             }}
           >
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add/Edit Product Modal */}
+      <Dialog open={openProductModal} onClose={() => setOpenProductModal(false)} maxWidth="lg" fullWidth>
+        <DialogTitle sx={{ bgcolor: "#111111", color: "#fff", fontFamily: "Poppins, sans-serif", fontWeight: 600, borderBottom: "1px solid rgba(57,255,20,0.1)" }}>
+          {selectedProduct ? "Edit Product" : "Add New Product"}
+        </DialogTitle>
+        <DialogContent sx={{ bgcolor: "#111111", p: 3 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 1 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Product Name"
+                  name="name"
+                  fullWidth
+                  value={productFormData.name}
+                  onChange={handleProductFormChange}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      color: "#fff",
+                      "& fieldset": {
+                        borderColor: "rgba(57,255,20,0.2)",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(57,255,20,0.4)",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#39FF14",
+                      },
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "#9E9E9E",
+                      "&.Mui-focused": {
+                        color: "#39FF14",
+                      },
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="SKU"
+                  name="sku"
+                  fullWidth
+                  value={productFormData.sku}
+                  onChange={handleProductFormChange}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      color: "#fff",
+                      "& fieldset": {
+                        borderColor: "rgba(57,255,20,0.2)",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(57,255,20,0.4)",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#39FF14",
+                      },
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "#9E9E9E",
+                      "&.Mui-focused": {
+                        color: "#39FF14",
+                      },
+                    },
+                  }}
+                />
+              </Grid>
+            </Grid>
+
+            <TextField
+              label="Description"
+              name="description"
+              fullWidth
+              multiline
+              rows={3}
+              value={productFormData.description}
+              onChange={handleProductFormChange}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  color: "#fff",
+                  "& fieldset": {
+                    borderColor: "rgba(57,255,20,0.2)",
+                  },
+                  "&:hover fieldset": {
+                    borderColor: "rgba(57,255,20,0.4)",
+                  },
+                  "&.Mui-focused fieldset": {
+                    borderColor: "#39FF14",
+                  },
+                },
+                "& .MuiInputLabel-root": {
+                  color: "#9E9E9E",
+                  "&.Mui-focused": {
+                    color: "#39FF14",
+                  },
+                },
+              }}
+            />
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <FormControl fullWidth>
+                  <Select
+                    label="Category"
+                    name="category"
+                    value={productFormData.category || ""}
+                    onChange={(e) => setProductFormData((prev) => ({ ...prev, category: e.target.value }))}
+                    sx={{
+                      color: "#fff",
+                      bgcolor: "rgba(5,5,5,0.5)",
+                      border: "1px solid rgba(57,255,20,0.2)",
+                      borderRadius: 1,
+                      ".MuiOutlinedInput-notchedOutline": { border: 0 },
+                      "&:hover .MuiOutlinedInput-notchedOutline": { border: 0 },
+                      "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#39FF14" },
+                    }}
+                  >
+                    <MenuItem value="">Select a category</MenuItem>
+                    {categories.map((cat) => (
+                      <MenuItem key={cat.id} value={cat.name}>{cat.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  label="Collection"
+                  name="collection"
+                  fullWidth
+                  value={productFormData.collection}
+                  onChange={handleProductFormChange}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      color: "#fff",
+                      "& fieldset": {
+                        borderColor: "rgba(57,255,20,0.2)",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(57,255,20,0.4)",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#39FF14",
+                      },
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "#9E9E9E",
+                      "&.Mui-focused": {
+                        color: "#39FF14",
+                      },
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  label="Brand"
+                  name="brand"
+                  fullWidth
+                  value={productFormData.brand}
+                  onChange={handleProductFormChange}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      color: "#fff",
+                      "& fieldset": {
+                        borderColor: "rgba(57,255,20,0.2)",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(57,255,20,0.4)",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#39FF14",
+                      },
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "#9E9E9E",
+                      "&.Mui-focused": {
+                        color: "#39FF14",
+                      },
+                    },
+                  }}
+                />
+              </Grid>
+            </Grid>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  label="Price"
+                  name="price"
+                  type="number"
+                  fullWidth
+                  value={productFormData.price}
+                  onChange={handleProductFormChange}
+                  InputProps={{ startAdornment: <DollarSign size={16} color="#9E9E9E" style={{ marginRight: 8 }} /> }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      color: "#fff",
+                      "& fieldset": {
+                        borderColor: "rgba(57,255,20,0.2)",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(57,255,20,0.4)",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#39FF14",
+                      },
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "#9E9E9E",
+                      "&.Mui-focused": {
+                        color: "#39FF14",
+                      },
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  label="Discount Price"
+                  name="discountPrice"
+                  type="number"
+                  fullWidth
+                  value={productFormData.discountPrice || ""}
+                  onChange={handleProductFormChange}
+                  InputProps={{ startAdornment: <DollarSign size={16} color="#9E9E9E" style={{ marginRight: 8 }} /> }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      color: "#fff",
+                      "& fieldset": {
+                        borderColor: "rgba(57,255,20,0.2)",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(57,255,20,0.4)",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#39FF14",
+                      },
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "#9E9E9E",
+                      "&.Mui-focused": {
+                        color: "#39FF14",
+                      },
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  label="Stock"
+                  name="stock"
+                  type="number"
+                  fullWidth
+                  value={productFormData.stock}
+                  onChange={handleProductFormChange}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      color: "#fff",
+                      "& fieldset": {
+                        borderColor: "rgba(57,255,20,0.2)",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(57,255,20,0.4)",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#39FF14",
+                      },
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "#9E9E9E",
+                      "&.Mui-focused": {
+                        color: "#39FF14",
+                      },
+                    },
+                  }}
+                />
+              </Grid>
+            </Grid>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  label="Sizes (comma separated)"
+                  fullWidth
+                  value={tempSizes}
+                  onChange={(e) => setTempSizes(e.target.value)}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      color: "#fff",
+                      "& fieldset": {
+                        borderColor: "rgba(57,255,20,0.2)",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(57,255,20,0.4)",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#39FF14",
+                      },
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "#9E9E9E",
+                      "&.Mui-focused": {
+                        color: "#39FF14",
+                      },
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  label="Colors (comma separated)"
+                  fullWidth
+                  value={tempColors}
+                  onChange={(e) => setTempColors(e.target.value)}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      color: "#fff",
+                      "& fieldset": {
+                        borderColor: "rgba(57,255,20,0.2)",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(57,255,20,0.4)",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#39FF14",
+                      },
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "#9E9E9E",
+                      "&.Mui-focused": {
+                        color: "#39FF14",
+                      },
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  label="Tags (comma separated)"
+                  fullWidth
+                  value={tempTags}
+                  onChange={(e) => setTempTags(e.target.value)}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      color: "#fff",
+                      "& fieldset": {
+                        borderColor: "rgba(57,255,20,0.2)",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(57,255,20,0.4)",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#39FF14",
+                      },
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "#9E9E9E",
+                      "&.Mui-focused": {
+                        color: "#39FF14",
+                      },
+                    },
+                  }}
+                />
+              </Grid>
+            </Grid>
+
+            <Divider sx={{ borderColor: "rgba(57,255,20,0.1)", my: 1 }} />
+
+            <Typography sx={{ color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, fontFamily: "Poppins, sans-serif", fontSize: "0.75rem" }}>
+              Media
+            </Typography>
+
+            <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
+              {/* Thumbnail Upload */}
+              <Card sx={{ flex: 1, p: 2, bgcolor: "rgba(5,5,5,0.5)", border: "1px dashed rgba(57,255,20,0.2)", borderRadius: 2, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 180, cursor: "pointer", position: "relative" }}>
+                {productFormData.thumbnail ? (
+                  <>
+                    <Image
+                      src={productFormData.thumbnail}
+                      alt="Thumbnail preview"
+                      fill
+                      style={{ objectFit: "cover", borderRadius: 8 }}
+                    />
+                    <Box sx={{ position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)" }}>
+                      <CldUploadWidget
+                        uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                        options={{ folder: process.env.NEXT_PUBLIC_CLOUDINARY_FOLDER }}
+                        onSuccess={(result) => handleProductCloudinaryUpload(result, "thumbnail")}
+                      >
+                        {({ open }) => (
+                          <Button
+                            variant="contained"
+                            size="small"
+                            onClick={() => open()}
+                            sx={{ bgcolor: "#39FF14", color: "#000", "&:hover": { bgcolor: "#2dd610" } }}
+                          >
+                            Change Thumbnail
+                          </Button>
+                        )}
+                      </CldUploadWidget>
+                    </Box>
+                  </>
+                ) : (
+                  <CldUploadWidget
+                    uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                    options={{ folder: process.env.NEXT_PUBLIC_CLOUDINARY_FOLDER }}
+                    onSuccess={(result) => handleProductCloudinaryUpload(result, "thumbnail")}
+                  >
+                    {({ open }) => (
+                      <Box onClick={() => open()} sx={{ textAlign: "center" }}>
+                        <Upload size={32} color="#9E9E9E" />
+                        <Typography sx={{ color: "#9E9E9E", fontFamily: "Poppins, sans-serif", fontSize: "0.875rem", mt: 1 }}>
+                          Upload Thumbnail
+                        </Typography>
+                      </Box>
+                    )}
+                  </CldUploadWidget>
+                )}
+              </Card>
+
+              {/* Gallery Upload */}
+              <Card sx={{ flex: 2, p: 2, bgcolor: "rgba(5,5,5,0.5)", border: "1px dashed rgba(57,255,20,0.2)", borderRadius: 2, minHeight: 180 }}>
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+                  {productFormData.gallery?.map((img, index) => (
+                    <Box key={index} sx={{ width: 80, height: 80, position: "relative", borderRadius: 2, overflow: "hidden" }}>
+                      <Image
+                        src={img}
+                        alt={`Gallery ${index}`}
+                        fill
+                        style={{ objectFit: "cover" }}
+                      />
+                      <IconButton
+                        size="small"
+                        sx={{
+                          position: "absolute",
+                          top: 4,
+                          right: 4,
+                          bgcolor: "rgba(0,0,0,0.5)",
+                          color: "#fff",
+                          "&:hover": { bgcolor: "rgba(0,0,0,0.7)" },
+                        }}
+                        onClick={() => {
+                          setProductFormData((prev) => ({
+                            ...prev,
+                            gallery: prev.gallery?.filter((_, i) => i !== index) || [],
+                          }));
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </IconButton>
+                    </Box>
+                  ))}
+                  <CldUploadWidget
+                    uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                    options={{ folder: process.env.NEXT_PUBLIC_CLOUDINARY_FOLDER }}
+                    onSuccess={(result) => handleProductCloudinaryUpload(result, "gallery")}
+                  >
+                    {({ open }) => (
+                      <Box
+                        onClick={() => open()}
+                        sx={{
+                          width: 80,
+                          height: 80,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          border: "1px dashed rgba(57,255,20,0.3)",
+                          borderRadius: 2,
+                          cursor: "pointer",
+                          "&:hover": { borderColor: "#39FF14" },
+                        }}
+                      >
+                        <Plus size={24} color="#9E9E9E" />
+                      </Box>
+                    )}
+                  </CldUploadWidget>
+                </Box>
+              </Card>
+            </Box>
+
+            <Divider sx={{ borderColor: "rgba(57,255,20,0.1)", my: 1 }} />
+
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+              <Box sx={{ display: "flex", gap: 3, alignItems: "center" }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Typography sx={{ color: "#fff", fontFamily: "Poppins, sans-serif" }}>Featured:</Typography>
+                  <Switch
+                    checked={productFormData.featured || false}
+                    onChange={(e) => handleProductSwitchChange("featured", e.target.checked)}
+                    sx={{
+                      "& .MuiSwitch-switchBase.Mui-checked": {
+                        color: "#39FF14",
+                      },
+                      "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                        backgroundColor: "rgba(57,255,20,0.3)",
+                      },
+                    }}
+                  />
+                </Box>
+                <FormControl size="small" sx={{ minWidth: 120 }}>
+                  <Select
+                    value={productFormData.status || "Draft"}
+                    onChange={(e) => setProductFormData((prev) => ({ ...prev, status: e.target.value as any }))}
+                    sx={{
+                      color: "#fff",
+                      bgcolor: "rgba(5,5,5,0.5)",
+                      border: "1px solid rgba(57,255,20,0.2)",
+                      borderRadius: 1,
+                      ".MuiOutlinedInput-notchedOutline": { border: 0 },
+                      "&:hover .MuiOutlinedInput-notchedOutline": { border: 0 },
+                      "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#39FF14" },
+                    }}
+                  >
+                    <MenuItem value="Draft">Draft</MenuItem>
+                    <MenuItem value="Active">Active</MenuItem>
+                    <MenuItem value="Inactive">Inactive</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ bgcolor: "#111111", p: 2, borderTop: "1px solid rgba(57,255,20,0.1)" }}>
+          <Button onClick={() => setOpenProductModal(false)} sx={{ color: "#9E9E9E", fontFamily: "Poppins, sans-serif" }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleProductSubmit}
+            variant="contained"
+            sx={{ bgcolor: "#39FF14", color: "#000", fontFamily: "Poppins, sans-serif", fontWeight: 600, "&:hover": { bgcolor: "#2dd610" } }}
+          >
+            {selectedProduct ? "Update Product" : "Publish Product"}
           </Button>
         </DialogActions>
       </Dialog>

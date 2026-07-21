@@ -38,12 +38,23 @@ export const fetchCategories = async (
       return new Date().toISOString();
     };
 
+    // Function to generate slug from name
+    const generateSlug = (name: string) => {
+      return name
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .trim();
+    };
+
     let categories = querySnapshot.docs.map((doc) => {
       const data = doc.data();
+      const name = data.name || "";
       return {
         id: doc.id,
-        name: data.name || "",
-        slug: data.slug || "",
+        name: name,
+        slug: data.slug || generateSlug(name),
         description: data.description || "",
         productCount: data.productCount || 0,
         status: data.status || "Draft",

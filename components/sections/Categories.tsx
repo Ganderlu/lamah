@@ -3,9 +3,20 @@
 import { Box, Container, Typography, Grid, Card, CardContent, Button, CircularProgress } from "@mui/material";
 import { motion } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import type { Category } from "@/types/category";
 import { fetchCategories } from "@/lib/categories";
+
+// Function to generate slug from name
+const generateSlug = (name: string) => {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .trim();
+};
 
 export default function Categories() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -127,6 +138,8 @@ export default function Categories() {
                       {category.description}
                     </Typography>
                     <Button
+                      component={Link}
+                      href={`/categories/${category.slug || generateSlug(category.name)}`}
                       variant="contained"
                       sx={{
                         bgcolor: "#39FF14",

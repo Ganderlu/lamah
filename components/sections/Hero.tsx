@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Box, Container, Typography, Button, Stack } from "@mui/material";
 import { ChevronDown } from "lucide-react";
+import Link from "next/link";
 
 export default function Hero() {
   return (
@@ -90,6 +91,8 @@ export default function Hero() {
             </Typography>
             <Stack direction={{ xs: "column", sm: "row" }} gap={3}>
               <Button
+                component={Link}
+                href="/men"
                 variant="contained"
                 sx={{
                   bgcolor: "#39FF14",
@@ -102,6 +105,8 @@ export default function Hero() {
                 Shop Men
               </Button>
               <Button
+                component={Link}
+                href="/women"
                 variant="outlined"
                 sx={{
                   borderColor: "#39FF14",

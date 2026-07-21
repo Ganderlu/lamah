@@ -33,10 +33,11 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuthStore } from "@/lib/store/auth";
 import { auth } from "@/firebase/client";
+import { signOut } from "firebase/auth";
 
 const menuItems = [
   { name: "My Orders", icon: ShoppingBag, href: "/dashboard/orders" },
@@ -44,10 +45,7 @@ const menuItems = [
   { name: "Wishlist", icon: Heart, href: "/wishlist" },
   { name: "My Addresses", icon: MapPin, href: "/dashboard/addresses" },
   { name: "Payment Methods", icon: CreditCard, href: "/dashboard/payment-methods" },
-  { name: "Account Settings", icon: Settings, href: "/dashboard/settings" },
-  { name: "Notifications", icon: Bell, href: "/dashboard/notifications" },
-  { name: "Rewards & Offers", icon: Gift, href: "/dashboard/rewards" },
-  { name: "Help & Support", icon: Headphones, href: "/dashboard/support" },
+  { name: "Account Settings", icon: Settings, href: "/dashboard/account-settings" },
   { name: "Logout", icon: LogOut, href: "/" },
 ];
 
@@ -61,11 +59,25 @@ export default function UserSidebar({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
   const pathname = usePathname();
+  const router = useRouter();
   const profile = useAuthStore((state) => state.profile);
+  const clearProfile = useAuthStore((state) => state.clearProfile);
   const displayName =
-    profile?.firstName ||
-    auth.currentUser?.displayName?.split(" ")[0] ||
+    [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") ||
+    auth.currentUser?.displayName ||
     "Patrick";
+  const membershipLevel = profile?.membershipLevel || "Silver Member";
+  const avatarUrl = profile?.photoURL || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face";
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      clearProfile();
+      router.push("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
 
   const sidebarContent = (
     <Box
@@ -98,7 +110,7 @@ export default function UserSidebar({
       <Box sx={{ p: 3, borderBottom: "1px solid rgba(57,255,20,0.1)" }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <Avatar
-            src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face"
+            src={avatarUrl}
             sx={{
               width: 48,
               height: 48,
@@ -125,7 +137,7 @@ export default function UserSidebar({
                 fontFamily: "Poppins, sans-serif",
               }}
             >
-              Gold Member
+              {membershipLevel}
             </Typography>
           </Box>
         </Box>
@@ -138,6 +150,8 @@ export default function UserSidebar({
             item.href === "/"
               ? false
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const isLogout = item.name === "Logout";
+
           return (
             <motion.div
               key={item.name}
@@ -147,9 +161,15 @@ export default function UserSidebar({
             >
               <ListItem disablePadding sx={{ mb: 1 }}>
                 <ListItemButton
-                  component={Link}
-                  href={item.href}
-                  onClick={() => isMobile && toggleSidebar()}
+                  component={isLogout ? undefined : Link}
+                  href={isLogout ? undefined : item.href}
+                  onClick={() => {
+                    if (isLogout) {
+                      handleLogout();
+                    } else if (isMobile) {
+                      toggleSidebar();
+                    }
+                  }}
                   sx={{
                     borderRadius: 2,
                     px: 2,
