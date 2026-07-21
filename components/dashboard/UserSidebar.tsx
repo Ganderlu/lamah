@@ -152,6 +152,60 @@ export default function UserSidebar({
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const isLogout = item.name === "Logout";
 
+          if (isLogout) {
+            return (
+              <motion.div
+                key={item.name}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+              >
+                <ListItem disablePadding sx={{ mb: 1 }}>
+                  <ListItemButton
+                    onClick={() => {
+                      handleLogout();
+                      if (isMobile) {
+                        toggleSidebar();
+                      }
+                    }}
+                    sx={{
+                      borderRadius: 2,
+                      px: 2,
+                      py: 1.5,
+                      ...(isActive && {
+                        bgcolor: "#39FF14",
+                        boxShadow: "0 0 30px rgba(57,255,20,0.3)",
+                        "&:hover": {
+                          bgcolor: "#2dd610",
+                        },
+                      }),
+                    }}
+                  >
+                    <ListItemIcon
+                      sx={{
+                        color: isActive ? "#000" : "#fff",
+                        minWidth: 40,
+                      }}
+                    >
+                      <item.icon size={20} />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={item.name}
+                      sx={{
+                        "& .MuiListItemText-primary": {
+                          color: isActive ? "#000" : "#fff",
+                          fontWeight: isActive ? 700 : 500,
+                          fontFamily: "Poppins, sans-serif",
+                          fontSize: "0.875rem",
+                        },
+                      }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              </motion.div>
+            );
+          }
+
           return (
             <motion.div
               key={item.name}
@@ -161,12 +215,10 @@ export default function UserSidebar({
             >
               <ListItem disablePadding sx={{ mb: 1 }}>
                 <ListItemButton
-                  component={isLogout ? undefined : Link}
-                  href={isLogout ? undefined : item.href}
+                  component={Link}
+                  href={item.href}
                   onClick={() => {
-                    if (isLogout) {
-                      handleLogout();
-                    } else if (isMobile) {
+                    if (isMobile) {
                       toggleSidebar();
                     }
                   }}
