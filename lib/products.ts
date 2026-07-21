@@ -55,7 +55,7 @@ export const fetchProductsByCategory = async (
 
 // Fetch all products
 export const fetchProducts = async (
-  statusFilter?: "All" | "Active" | "Inactive" | "Draft" = "All"
+  statusFilter: "All" | "Active" | "Inactive" | "Draft" = "All"
 ): Promise<Product[]> => {
   try {
     const querySnapshot = await getDocs(collection(db, "products"));
