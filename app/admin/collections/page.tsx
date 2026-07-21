@@ -226,6 +226,21 @@ export default function AdminCollectionsPage() {
     }));
   };
 
+  // Handle Cloudinary upload success
+  const handleCloudinaryUpload = (result: any, fieldName: "coverImage" | "bannerImage") => {
+    if (result.event === "success" && result.info && typeof result.info !== "string") {
+      setFormData((prev) => ({
+        ...prev,
+        [fieldName]: result.info.secure_url,
+      }));
+      setSnackbar({
+        open: true,
+        message: `${fieldName === "coverImage" ? "Cover" : "Banner"} image uploaded!`,
+        severity: "success",
+      });
+    }
+  };
+
   // Create collection
   const handleCreateCollection = async () => {
     try {
@@ -1416,19 +1431,7 @@ export default function AdminCollectionsPage() {
               <Grid item xs={12} sm={6}>
                 <CldUploadWidget
                   uploadPreset="ml_default"
-                  onSuccess={(result) => {
-                    if (result.info && typeof result.info !== "string") {
-                      setFormData((prev) => ({
-                        ...prev,
-                        coverImage: result.info.secure_url,
-                      }));
-                      setSnackbar({
-                        open: true,
-                        message: "Cover image uploaded!",
-                        severity: "success",
-                      });
-                    }
-                  }}
+                  onSuccess={(result) => handleCloudinaryUpload(result, "coverImage")}
                 >
                   {({ open }) => (
                     <Button
@@ -1451,19 +1454,7 @@ export default function AdminCollectionsPage() {
               <Grid item xs={12} sm={6}>
                 <CldUploadWidget
                   uploadPreset="ml_default"
-                  onSuccess={(result) => {
-                    if (result.info && typeof result.info !== "string") {
-                      setFormData((prev) => ({
-                        ...prev,
-                        bannerImage: result.info.secure_url,
-                      }));
-                      setSnackbar({
-                        open: true,
-                        message: "Banner image uploaded!",
-                        severity: "success",
-                      });
-                    }
-                  }}
+                  onSuccess={(result) => handleCloudinaryUpload(result, "bannerImage")}
                 >
                   {({ open }) => (
                     <Button
@@ -1643,14 +1634,7 @@ export default function AdminCollectionsPage() {
               <Grid item xs={12} sm={6}>
                 <CldUploadWidget
                   uploadPreset="ml_default"
-                  onSuccess={(result) => {
-                    if (result.info && typeof result.info !== "string") {
-                      setFormData((prev) => ({
-                        ...prev,
-                        coverImage: result.info.secure_url,
-                      }));
-                    }
-                  }}
+                  onSuccess={(result) => handleCloudinaryUpload(result, "coverImage")}
                 >
                   {({ open }) => (
                     <Button
@@ -1673,14 +1657,7 @@ export default function AdminCollectionsPage() {
               <Grid item xs={12} sm={6}>
                 <CldUploadWidget
                   uploadPreset="ml_default"
-                  onSuccess={(result) => {
-                    if (result.info && typeof result.info !== "string") {
-                      setFormData((prev) => ({
-                        ...prev,
-                        bannerImage: result.info.secure_url,
-                      }));
-                    }
-                  }}
+                  onSuccess={(result) => handleCloudinaryUpload(result, "bannerImage")}
                 >
                   {({ open }) => (
                     <Button
