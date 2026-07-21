@@ -77,3 +77,29 @@ export const fetchUserOrders = async (userId: string): Promise<CustomerOrder[]> 
     throw error;
   }
 };
+
+// Fetch all orders (for admin dashboard)
+export const fetchAllOrders = async (): Promise<CustomerOrder[]> => {
+  try {
+    const querySnapshot = await getDocs(collection(db, "orders"));
+    
+    return querySnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        orderId: data.orderId || "",
+        userId: data.userId || "",
+        items: data.items || [],
+        total: data.total || 0,
+        status: data.status || "Processing",
+        paymentStatus: data.paymentStatus || "Pending",
+        shippingStatus: data.shippingStatus || "Processing",
+        createdAt: toISOString(data.createdAt),
+        updatedAt: toISOString(data.updatedAt),
+      };
+    });
+  } catch (error) {
+    console.error("Error fetching all orders:", error);
+    throw error;
+  }
+};

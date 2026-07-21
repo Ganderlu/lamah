@@ -1,0 +1,20 @@
+export type Customer = {
+  id?: string;
+  uid: string;
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  phone?: string;
+  avatar?: string;
+  gender?: string;
+  membership: "Gold Member" | "Silver Member" | "Bronze Member" | "Regular Customer";
+  status: "Active" | "Inactive" | "Blocked";
+  rewardPoints: number;
+  wishlistCount?: number;
+  ordersCount?: number;
+  totalSpent?: number;
+  defaultAddress?: string;
+  createdAt: string;
+  updatedAt?: string;
+};

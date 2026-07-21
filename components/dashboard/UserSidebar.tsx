@@ -260,64 +260,6 @@ export default function UserSidebar({
           );
         })}
       </List>
-
-      {/* Footer for Sidebar */}
-      <Box sx={{ p: 3, borderTop: "1px solid rgba(57,255,20,0.1)" }}>
-        <Box
-          sx={{
-            borderRadius: 3,
-            border: "1px solid rgba(57,255,20,0.12)",
-            bgcolor: "#111111",
-            p: 2.5,
-            boxShadow: "0 12px 30px rgba(0,0,0,0.3)",
-          }}
-        >
-          <Typography
-            sx={{
-              color: "#FFFFFF",
-              fontFamily: "Poppins, sans-serif",
-              fontWeight: 700,
-              mb: 0.75,
-            }}
-          >
-            Need Help?
-          </Typography>
-          <Typography
-            variant="body2"
-            sx={{
-              color: "#A0A0A0",
-              fontFamily: "Poppins, sans-serif",
-              lineHeight: 1.6,
-              mb: 2,
-            }}
-          >
-            Our support team is here to help you anytime.
-          </Typography>
-          <Button
-            component={Link}
-            href="/contact"
-            fullWidth
-            endIcon={<ArrowRight size={16} />}
-            sx={{
-              borderRadius: 2.5,
-              border: "1px solid rgba(57,255,20,0.3)",
-              color: "#39FF14",
-              fontFamily: "Poppins, sans-serif",
-              fontWeight: 700,
-              py: 1.2,
-              textTransform: "none",
-              bgcolor: "rgba(57,255,20,0.04)",
-              "&:hover": {
-                borderColor: "#39FF14",
-                bgcolor: "rgba(57,255,20,0.1)",
-                boxShadow: "0 0 24px rgba(57,255,20,0.16)",
-              },
-            }}
-          >
-            Contact Support
-          </Button>
-        </Box>
-      </Box>
     </Box>
   );
 

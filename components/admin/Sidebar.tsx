@@ -1,7 +1,5 @@
 
 "use client";
-
-import { useState } from "react";
 import {
   Box,
   Drawer,
@@ -24,11 +22,7 @@ import {
   Layers,
   Boxes,
   Users,
-  TicketPercent,
   Star,
-  BarChart3,
-  Megaphone,
-  Shield,
   Settings,
   LogOut,
   Menu,
@@ -49,11 +43,6 @@ const menuItems = [
   { name: "Inventory", icon: Boxes, href: "/admin/inventory" },
   { name: "Collections", icon: Star, href: "/admin/collections" },
   { name: "Customers", icon: Users, href: "/admin/customers" },
-  { name: "Coupons", icon: TicketPercent, href: "/admin/coupons" },
-  { name: "Reviews", icon: Star, href: "/admin/reviews" },
-  { name: "Analytics", icon: BarChart3, href: "/admin/analytics" },
-  { name: "Marketing", icon: Megaphone, href: "/admin/marketing" },
-  { name: "Staff Management", icon: Shield, href: "/admin/staff" },
   { name: "Settings", icon: Settings, href: "/admin/settings" },
   { name: "Logout", icon: LogOut, href: "/" },
 ];
@@ -215,68 +204,6 @@ export default function AdminSidebar({
           );
         })}
       </List>
-
-      {/* Support Card */}
-      <Box sx={{ p: 3, borderTop: "1px solid rgba(57,255,20,0.1)" }}>
-        <Box
-          sx={{
-            p: 2.5,
-            borderRadius: 3,
-            bgcolor: "#111111",
-            border: "1px solid rgba(57,255,20,0.12)",
-            boxShadow: "0 0 24px rgba(57,255,20,0.04)",
-          }}
-        >
-          <Typography
-            sx={{
-              color: "#fff",
-              fontWeight: 700,
-              fontFamily: "Poppins, sans-serif",
-              mb: 0.75,
-            }}
-          >
-            Need Help?
-          </Typography>
-          <Typography
-            variant="caption"
-            sx={{
-              color: "#9E9E9E",
-              fontFamily: "Poppins, sans-serif",
-              lineHeight: 1.6,
-              display: "block",
-              mb: 2,
-            }}
-          >
-            Our support team is here to help you.
-          </Typography>
-          <ListItemButton
-            component={Link}
-            href="/contact"
-            sx={{
-              borderRadius: 2,
-              py: 1.25,
-              px: 1.5,
-              bgcolor: "rgba(57,255,20,0.1)",
-              border: "1px solid rgba(57,255,20,0.2)",
-              "&:hover": {
-                bgcolor: "rgba(57,255,20,0.16)",
-              },
-            }}
-          >
-            <ListItemText
-              primary="Contact Support"
-              sx={{
-                "& .MuiListItemText-primary": {
-                  color: "#39FF14",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: 600,
-                  fontSize: "0.875rem",
-                },
-              }}
-            />
-          </ListItemButton>
-        </Box>
-      </Box>
     </Box>
   );
 
