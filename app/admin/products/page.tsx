@@ -877,7 +877,7 @@ export default function AdminProductsPage() {
                               checked={product.featured}
                               onChange={async () => {
                                 await updateProduct(product.id!, { featured: !product.featured });
-                                loadProducts();
+                                loadData();
                               }}
                               sx={{
                                 "& .MuiSwitch-switchBase.Mui-checked": {
