@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bebas_Neue, Poppins } from "next/font/google";
 import Providers from "./providers";
+import SetFavicon from "@/components/SetFavicon";
 import "./globals.css";
 
 const bebasNeue = Bebas_Neue({
@@ -33,7 +34,10 @@ export default function RootLayout({
       className={`${bebasNeue.variable} ${poppins.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#050505]">
-        <Providers>{children}</Providers>
+        <Providers>
+          <SetFavicon />
+          {children}
+        </Providers>
       </body>
     </html>
   );

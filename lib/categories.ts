@@ -19,8 +19,21 @@ export const fetchCategories = async (
   statusFilter?: "All" | "Active" | "Inactive" | "Draft"
 ): Promise<Category[]> => {
   try {
-    // First, try to fetch all and filter/sort in memory to avoid index requirement
-    const querySnapshot = await getDocs(collection(db, "categories"));
+    // Fetch all categories
+    const categoriesSnapshot = await getDocs(collection(db, "categories"));
+    // Fetch all products to calculate product counts
+    const productsSnapshot = await getDocs(collection(db, "products"));
+    
+    // Count products per category
+    const productCountMap: Record<string, number> = {};
+    productsSnapshot.docs.forEach((doc) => {
+      const data = doc.data();
+      const category = data.category || "";
+      if (category) {
+        productCountMap[category] = (productCountMap[category] || 0) + 1;
+      }
+    });
+
     // Helper to safely convert to ISO string
     const toISOString = (value: any): string => {
       if (!value) return new Date().toISOString();
@@ -48,15 +61,16 @@ export const fetchCategories = async (
         .trim();
     };
 
-    let categories = querySnapshot.docs.map((doc) => {
+    let categories = categoriesSnapshot.docs.map((doc) => {
       const data = doc.data();
       const name = data.name || "";
+      const productCount = productCountMap[name] || 0;
       return {
         id: doc.id,
         name: name,
         slug: data.slug || generateSlug(name),
         description: data.description || "",
-        productCount: data.productCount || 0,
+        productCount: productCount,
         status: data.status || "Draft",
         createdAt: toISOString(data.createdAt),
         updatedAt: data.updatedAt ? toISOString(data.updatedAt) : undefined,

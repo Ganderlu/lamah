@@ -65,6 +65,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CldUploadWidget } from "next-cloudinary";
 import StatCard from "@/components/admin/StatCard";
 import { fetchCategories } from "@/lib/categories";
+import { fetchCollections } from "@/lib/collections";
 import {
   createNewArrival,
   deleteNewArrival,
@@ -297,6 +298,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 export default function AdminNewArrivalsPage() {
   const [items, setItems] = useState<NewArrival[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<string[]>(CATEGORY_FALLBACKS);
+  const [collectionOptions, setCollectionOptions] = useState<string[]>(["Lamah Core", "Midnight Drop", "Summer 2026", "Luxury Essentials", "Runway Capsule"]);
   const [loading, setLoading] = useState(true);
   const [openModal, setOpenModal] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
@@ -335,9 +337,10 @@ export default function AdminNewArrivalsPage() {
   const loadPageData = async () => {
     try {
       setLoading(true);
-      const [arrivalData, categoryData] = await Promise.all([
+      const [arrivalData, categoryData, collectionData] = await Promise.all([
         fetchNewArrivals(),
         fetchCategories("Active").catch(() => []),
+        fetchCollections("Active").catch(() => []),
       ]);
 
       setItems(arrivalData);
@@ -346,6 +349,12 @@ export default function AdminNewArrivalsPage() {
         .filter(Boolean);
       setCategoryOptions(
         dbCategories.length > 0 ? Array.from(new Set(dbCategories)) : CATEGORY_FALLBACKS
+      );
+      const dbCollections = collectionData
+        .map((collection) => collection.name)
+        .filter(Boolean);
+      setCollectionOptions(
+        dbCollections.length > 0 ? Array.from(new Set(dbCollections)) : ["Lamah Core", "Midnight Drop", "Summer 2026", "Luxury Essentials", "Runway Capsule"]
       );
     } catch (error) {
       setSnackbar({
@@ -1234,7 +1243,7 @@ export default function AdminNewArrivalsPage() {
                       <InputLabel sx={labelSx}>Collection</InputLabel>
                       <Select {...field} label="Collection" sx={selectSx}>
                         <MenuItem value="">None</MenuItem>
-                        {COLLECTION_OPTIONS.map((collection) => (
+                        {collectionOptions.map((collection) => (
                           <MenuItem key={collection} value={collection}>
                             {collection}
                           </MenuItem>

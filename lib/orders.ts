@@ -1,6 +1,6 @@
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "@/firebase/client";
-import type { CustomerOrder, OrderStatus } from "@/types/order";
+import type { CustomerOrder, OrderStatus, PaymentStatus, PaymentMethod } from "@/types/order";
 
 // Helper to safely convert timestamps
 const toISOString = (value: any): string => {
@@ -11,89 +11,52 @@ const toISOString = (value: any): string => {
   return new Date().toISOString();
 };
 
-// Fetch a single order by orderId
-export const fetchOrderByOrderId = async (
-  orderId: string,
-  userId?: string
-): Promise<CustomerOrder | null> => {
-  try {
-    const q = query(
-      collection(db, "orders"),
-      where("orderId", "==", orderId)
-    );
-    const querySnapshot = await getDocs(q);
-    if (querySnapshot.empty) return null;
-    
-    const doc = querySnapshot.docs[0];
-    const data = doc.data();
-    
-    // If userId is provided, ensure the order belongs to that user
-    if (userId && data.userId !== userId) return null;
-    
-    return {
-      id: doc.id,
-      orderId: data.orderId || "",
-      userId: data.userId || "",
-      items: data.items || [],
-      total: data.total || 0,
-      status: data.status || "Processing",
-      paymentStatus: data.paymentStatus || "Pending",
-      shippingStatus: data.shippingStatus || "Processing",
-      createdAt: toISOString(data.createdAt),
-      updatedAt: toISOString(data.updatedAt),
-    };
-  } catch (error) {
-    console.error("Error fetching order:", error);
-    throw error;
-  }
-};
-
-// Fetch all orders for a user
-export const fetchUserOrders = async (userId: string): Promise<CustomerOrder[]> => {
-  try {
-    const q = query(
-      collection(db, "orders"),
-      where("userId", "==", userId)
-    );
-    const querySnapshot = await getDocs(q);
-    
-    return querySnapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        orderId: data.orderId || "",
-        userId: data.userId || "",
-        items: data.items || [],
-        total: data.total || 0,
-        status: data.status || "Processing",
-        paymentStatus: data.paymentStatus || "Pending",
-        shippingStatus: data.shippingStatus || "Processing",
-        createdAt: toISOString(data.createdAt),
-        updatedAt: toISOString(data.updatedAt),
-      };
-    });
-  } catch (error) {
-    console.error("Error fetching user orders:", error);
-    throw error;
-  }
-};
-
 // Fetch all orders (for admin dashboard)
 export const fetchAllOrders = async (): Promise<CustomerOrder[]> => {
   try {
-    const querySnapshot = await getDocs(collection(db, "orders"));
+    const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+    const querySnapshot = await getDocs(q);
     
     return querySnapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         id: doc.id,
-        orderId: data.orderId || "",
-        userId: data.userId || "",
-        items: data.items || [],
+        orderNumber: data.orderNumber || `#LMH-${Date.now()}`,
+        customerId: data.customerId || "",
+        customerName: data.customerName || "Customer",
+        customerEmail: data.customerEmail || "",
+        customerPhone: data.customerPhone || "",
+        customerAvatar: data.customerAvatar || "",
+        products: data.products || [],
+        subtotal: data.subtotal || 0,
+        shippingFee: data.shippingFee || 0,
+        discount: data.discount || 0,
+        tax: data.tax || 0,
         total: data.total || 0,
-        status: data.status || "Processing",
-        paymentStatus: data.paymentStatus || "Pending",
-        shippingStatus: data.shippingStatus || "Processing",
+        paymentMethod: (data.paymentMethod as PaymentMethod) || "card",
+        paymentStatus: (data.paymentStatus as PaymentStatus) || "Pending",
+        transactionId: data.transactionId || "",
+        deliveryStatus: (data.deliveryStatus as OrderStatus) || "Pending",
+        trackingNumber: data.trackingNumber || "",
+        courier: data.courier || "",
+        estimatedDelivery: data.estimatedDelivery ? toISOString(data.estimatedDelivery) : "",
+        shippingAddress: data.shippingAddress || {
+          street: "",
+          city: "",
+          state: "",
+          postalCode: "",
+          country: "",
+        },
+        billingAddress: data.billingAddress || {
+          street: "",
+          city: "",
+          state: "",
+          postalCode: "",
+          country: "",
+        },
+        status: (data.status as OrderStatus) || "Pending",
+        adminNotes: data.adminNotes || [],
+        timeline: data.timeline || [],
         createdAt: toISOString(data.createdAt),
         updatedAt: toISOString(data.updatedAt),
       };

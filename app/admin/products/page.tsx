@@ -65,6 +65,7 @@ import {
   deleteProduct,
 } from "@/lib/products";
 import { fetchCategories } from "@/lib/categories";
+import { fetchCollections } from "@/lib/collections";
 import Image from "next/image";
 
 // Status Chip Component
@@ -110,6 +111,7 @@ export default function AdminProductsPage() {
   const [page, setPage] = useState(1);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [collections, setCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
@@ -147,12 +149,14 @@ export default function AdminProductsPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [productsData, categoriesData] = await Promise.all([
+      const [productsData, categoriesData, collectionsData] = await Promise.all([
         fetchProducts(statusFilter),
         fetchCategories(),
+        fetchCollections(),
       ]);
       setProducts(productsData);
       setCategories(categoriesData);
+      setCollections(collectionsData);
     } catch (error) {
       setSnackbar({
         open: true,
@@ -1185,33 +1189,30 @@ export default function AdminProductsPage() {
                 </FormControl>
               </Grid>
               <Grid item xs={12} sm={4}>
-                <TextField
-                  label="Collection"
-                  name="collection"
-                  fullWidth
-                  value={formData.collection}
-                  onChange={handleFormChange}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
+                <FormControl fullWidth>
+                  <Select
+                    label="Collection"
+                    name="collection"
+                    value={formData.collection || ""}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, collection: e.target.value }))}
+                    sx={{
                       color: "#fff",
-                      "& fieldset": {
-                        borderColor: "rgba(57,255,20,0.2)",
-                      },
-                      "&:hover fieldset": {
-                        borderColor: "rgba(57,255,20,0.4)",
-                      },
-                      "&.Mui-focused fieldset": {
-                        borderColor: "#39FF14",
-                      },
-                    },
-                    "& .MuiInputLabel-root": {
-                      color: "#9E9E9E",
-                      "&.Mui-focused": {
-                        color: "#39FF14",
-                      },
-                    },
-                  }}
-                />
+                      bgcolor: "rgba(5,5,5,0.5)",
+                      border: "1px solid rgba(57,255,20,0.2)",
+                      borderRadius: 1,
+                      ".MuiOutlinedInput-notchedOutline": { border: 0 },
+                      "&:hover .MuiOutlinedInput-notchedOutline": { border: 0 },
+                      "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#39FF14" },
+                    }}
+                  >
+                    <MenuItem value="">Select a collection</MenuItem>
+                    {collections.map((collection) => (
+                      <MenuItem key={collection.id} value={collection.name}>
+                        {collection.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Grid>
               <Grid item xs={12} sm={4}>
                 <TextField

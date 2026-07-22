@@ -129,6 +129,7 @@ export default function AdminCollectionsPage() {
     description: "",
     status: "Draft",
     featured: false,
+    productCount: 0,
     productIds: [],
     coverImage: "",
     bannerImage: "",
@@ -325,6 +326,7 @@ export default function AdminCollectionsPage() {
       description: "",
       status: "Draft",
       featured: false,
+      productCount: 0,
       productIds: [],
       coverImage: "",
       bannerImage: "",
@@ -612,7 +614,7 @@ export default function AdminCollectionsPage() {
                         mb: 1,
                       }}
                     >
-                      {collections.reduce((sum, c) => sum + c.productIds.length, 0)}
+                      {collections.reduce((sum, c) => sum + c.productCount, 0)}
                     </Typography>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                       <TrendingUp size={14} color="#39FF14" />
@@ -994,7 +996,7 @@ export default function AdminCollectionsPage() {
                                 </Box>
                               </TableCell>
                               <TableCell sx={{ py: 2, color: "#fff", fontWeight: 600, fontFamily: "Inter, sans-serif" }}>
-                                {col.productIds.length} Products
+                                {col.productCount} Products
                               </TableCell>
                               <TableCell sx={{ py: 2 }}>
                                 <StatusChip status={col.status} />
@@ -1099,7 +1101,7 @@ export default function AdminCollectionsPage() {
                                 Products
                               </Typography>
                               <Typography sx={{ color: "#fff", fontWeight: 600, fontFamily: "Inter, sans-serif", fontSize: "1rem" }}>
-                                {col.productIds.length}
+                                {col.productCount}
                               </Typography>
                             </Box>
                           </Box>
@@ -1220,7 +1222,7 @@ export default function AdminCollectionsPage() {
                       {selectedCollection.description}
                     </Typography>
                     <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-                      <Chip label={`${selectedCollection.productIds.length} Products`} sx={{ bgcolor: "rgba(57,255,20,0.1)", color: "#39FF14" }} />
+                      <Chip label={`${selectedCollection.productCount} Products`} sx={{ bgcolor: "rgba(57,255,20,0.1)", color: "#39FF14" }} />
                       <StatusChip status={selectedCollection.status} />
                       {selectedCollection.featured && (
                         <Chip label="Featured" sx={{ bgcolor: "rgba(245,166,35,0.1)", color: "#F5A623" }} />
@@ -1430,7 +1432,7 @@ export default function AdminCollectionsPage() {
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <CldUploadWidget
-                  uploadPreset="ml_default"
+                  uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
                   onSuccess={(result) => handleCloudinaryUpload(result, "coverImage")}
                 >
                   {({ open }) => (
@@ -1453,7 +1455,7 @@ export default function AdminCollectionsPage() {
               </Grid>
               <Grid item xs={12} sm={6}>
                 <CldUploadWidget
-                  uploadPreset="ml_default"
+                  uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
                   onSuccess={(result) => handleCloudinaryUpload(result, "bannerImage")}
                 >
                   {({ open }) => (
@@ -1633,7 +1635,7 @@ export default function AdminCollectionsPage() {
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <CldUploadWidget
-                  uploadPreset="ml_default"
+                  uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
                   onSuccess={(result) => handleCloudinaryUpload(result, "coverImage")}
                 >
                   {({ open }) => (
@@ -1656,7 +1658,7 @@ export default function AdminCollectionsPage() {
               </Grid>
               <Grid item xs={12} sm={6}>
                 <CldUploadWidget
-                  uploadPreset="ml_default"
+                  uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
                   onSuccess={(result) => handleCloudinaryUpload(result, "bannerImage")}
                 >
                   {({ open }) => (

@@ -81,6 +81,7 @@ import {
   updateCustomer,
   deleteCustomer,
 } from "@/lib/customers";
+import { fetchAllOrders } from "@/lib/orders";
 
 // Status Chip Component
 const StatusChip = ({ status }: { status: string }) => {
@@ -156,6 +157,8 @@ const formatCurrency = (amount: number) => {
 
 export default function AdminCustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [totalRevenue, setTotalRevenue] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<
     "All" | "Active" | "Inactive" | "Blocked"
@@ -192,13 +195,20 @@ export default function AdminCustomersPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const customersData = await fetchCustomers(statusFilter, membershipFilter);
+      const [customersData, ordersData] = await Promise.all([
+        fetchCustomers(statusFilter, membershipFilter),
+        fetchAllOrders(),
+      ]);
       setCustomers(customersData);
+      setOrders(ordersData);
+      
+      const total = ordersData.reduce((sum, order) => sum + (order.total || 0), 0);
+      setTotalRevenue(total);
     } catch (error) {
-      console.error("Error loading customers:", error);
+      console.error("Error loading data:", error);
       setSnackbar({
         open: true,
-        message: "Failed to load customers",
+        message: "Failed to load data",
         severity: "error",
       });
     } finally {
@@ -235,7 +245,6 @@ export default function AdminCustomersPage() {
     (c) => new Date(c.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   ).length;
   const repeatCustomers = customers.filter((c) => (c.ordersCount || 0) > 1).length;
-  const totalRevenue = customers.reduce((sum, c) => sum + (c.totalSpent || 0), 0);
 
   // Menu handlers
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, customer: Customer) => {
@@ -327,7 +336,7 @@ export default function AdminCustomersPage() {
   ];
 
   return (
-    <Box sx={{ maxWidth: "1800px", mx: "auto", width: "100%", overflowX: "hidden" }}>
+    <Box sx={{ width: "100%", overflowX: "hidden" }}>
       {/* Page Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -748,7 +757,7 @@ export default function AdminCustomersPage() {
                         mb: 1,
                       }}
                     >
-                      {totalRevenue === 0 ? "₦24,560,000" : formatCurrency(totalRevenue)}
+                      {formatCurrency(totalRevenue)}
                     </Typography>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                       <TrendingUp size={14} color="#39FF14" />

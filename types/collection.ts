@@ -7,6 +7,7 @@ export type Collection = {
   bannerImage?: string;
   featured: boolean;
   status: "Active" | "Inactive" | "Draft";
+  productCount: number;
   productIds: string[];
   createdAt: string;
   updatedAt?: string;

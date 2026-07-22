@@ -9,6 +9,8 @@ import {
 } from "firebase/firestore";
 import { db } from "@/firebase/client";
 import type { Collection } from "@/types/collection";
+import { fetchProducts } from "./products";
+import { fetchNewArrivals } from "./newArrivals";
 
 // Helper to safely convert to ISO string
 const toISOString = (value: any): string => {
@@ -40,11 +42,32 @@ export const fetchCollections = async (
   statusFilter?: "All" | "Active" | "Inactive" | "Draft"
 ): Promise<Collection[]> => {
   try {
-    const querySnapshot = await getDocs(collection(db, "collections"));
+    const [collectionsSnapshot, products, newArrivals] = await Promise.all([
+      getDocs(collection(db, "collections")),
+      fetchProducts(),
+      fetchNewArrivals(),
+    ]);
     
-    let collections = querySnapshot.docs.map((doc) => {
+    // Count products per collection
+    const productCountMap: Record<string, number> = {};
+    products.forEach((product) => {
+      const collectionName = product.collection || "";
+      if (collectionName) {
+        productCountMap[collectionName] = (productCountMap[collectionName] || 0) + 1;
+      }
+    });
+    // Count new arrivals per collection
+    newArrivals.forEach((arrival) => {
+      const collectionName = arrival.collection || "";
+      if (collectionName) {
+        productCountMap[collectionName] = (productCountMap[collectionName] || 0) + 1;
+      }
+    });
+    
+    let collections = collectionsSnapshot.docs.map((doc) => {
       const data = doc.data();
       const name = data.name || "";
+      const productCount = productCountMap[name] || 0;
       return {
         id: doc.id,
         name: name,
@@ -54,6 +77,7 @@ export const fetchCollections = async (
         bannerImage: data.bannerImage || "",
         featured: data.featured || false,
         status: data.status || "Draft",
+        productCount: productCount,
         productIds: data.productIds || [],
         createdAt: toISOString(data.createdAt),
         updatedAt: data.updatedAt ? toISOString(data.updatedAt) : undefined,
@@ -84,6 +108,7 @@ export const createCollection = async (
   try {
     const docRef = await addDoc(collection(db, "collections"), {
       ...collectionData,
+      productCount: 0, // Default to 0
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -101,8 +126,9 @@ export const updateCollection = async (
 ): Promise<void> => {
   try {
     const collectionRef = doc(db, "collections", id);
+    const { productCount, ...rest } = collectionData; // Don't let users update productCount manually
     await updateDoc(collectionRef, {
-      ...collectionData,
+      ...rest,
       updatedAt: serverTimestamp(),
     });
   } catch (error) {

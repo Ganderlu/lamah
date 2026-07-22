@@ -155,7 +155,7 @@ export default function AdminSettingsPage() {
   };
 
   return (
-    <Box sx={{ maxWidth: "1800px", mx: "auto", width: "100%", overflowX: "hidden" }}>
+    <Box sx={{ width: "100%", overflowX: "hidden" }}>
       {/* Page Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -598,7 +598,7 @@ export default function AdminSettingsPage() {
                           />
                           <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center" }}>
                             <CldUploadWidget
-                              uploadPreset="ml_default"
+                              uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
                               onSuccess={(result) => handleCloudinaryUpload(result, "logo")}
                             >
                               {({ open }) => (
@@ -674,7 +674,7 @@ export default function AdminSettingsPage() {
                           />
                           <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center" }}>
                             <CldUploadWidget
-                              uploadPreset="ml_default"
+                              uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
                               onSuccess={(result) => handleCloudinaryUpload(result, "favicon")}
                             >
                               {({ open }) => (
