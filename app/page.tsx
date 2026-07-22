@@ -5,6 +5,7 @@ import Categories from "@/components/sections/Categories";
 import NewArrivals from "@/components/sections/NewArrivals";
 import BestSellers from "@/components/sections/BestSellers";
 import Newsletter from "@/components/sections/Newsletter";
+import FeatureBanner from "@/components/sections/FeatureBanner";
 
 export default function Home() {
   return (
@@ -16,6 +17,7 @@ export default function Home() {
         <NewArrivals />
         <BestSellers />
         <Newsletter />
+        <FeatureBanner />
       </main>
       <Footer />
     </>
