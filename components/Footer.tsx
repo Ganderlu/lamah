@@ -122,6 +122,56 @@ export default function Footer() {
               </Link>
             </Stack>
           </Grid>
+
+          {/* Column 4: Movement */}
+          <Grid item xs={12} sm={6} md={4}>
+            <Box
+              sx={{
+                position: "relative",
+                "&::before": {
+                  content: '""',
+                  position: "absolute",
+                  inset: "-15px",
+                  background:
+                    "radial-gradient(circle, rgba(57,255,20,0.2) 0%, transparent 70%)",
+                  filter: "blur(30px)",
+                  zIndex: 0,
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  position: "relative",
+                  zIndex: 1,
+                  bgcolor: "#050505",
+                  borderRadius: "20px",
+                  border: "1px solid rgba(57,255,20,0.2)",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: { xs: "0.75rem", md: "1rem" },
+                  padding: "1.5rem",
+                  boxShadow: "0 0 40px rgba(57,255,20,0.15)",
+                }}
+              >
+                {["LOVE", "ACCEPT", "MOTIVATE", "ASPIRE", "HEAL"].map((word, i) => (
+                  <Typography
+                    key={i}
+                    sx={{
+                      fontFamily: "Bebas Neue, cursive",
+                      color: "#39FF14",
+                      fontSize: { xs: "1.75rem", md: "2rem" },
+                      letterSpacing: "0.2em",
+                      textShadow: "0 0 20px rgba(57,255,20,0.6)",
+                    }}
+                  >
+                    {word}
+                  </Typography>
+                ))}
+              </Box>
+            </Box>
+          </Grid>
         </Grid>
 
         {/* Bottom Footer */}
