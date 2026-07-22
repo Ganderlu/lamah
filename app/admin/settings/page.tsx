@@ -51,6 +51,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import type { Settings } from "@/types/settings";
 import { fetchSettings, updateSettings, defaultSettings } from "@/lib/settings";
+import { CldUploadWidget } from "next-cloudinary";
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
@@ -132,6 +133,16 @@ export default function AdminSettingsPage() {
       setSettings((prev) => ({
         ...prev,
         [field]: value,
+      }));
+    }
+  };
+
+  // Handle Cloudinary upload success
+  const handleCloudinaryUpload = (result: any, fieldName: "logo" | "favicon") => {
+    if (result.event === "success" && result.info && typeof result.info !== "string") {
+      setSettings((prev) => ({
+        ...prev,
+        [fieldName]: result.info.secure_url,
       }));
     }
   };
@@ -585,22 +596,31 @@ export default function AdminSettingsPage() {
                               border: "2px dashed rgba(57,255,20,0.3)",
                             }}
                           />
-                          <Box sx={{ display: "flex", gap: 2 }}>
-                            <Button
-                              variant="outlined"
-                              startIcon={<Upload size={16} />}
-                              sx={{
-                                borderColor: "rgba(57,255,20,0.3)",
-                                color: "#39FF14",
-                                textTransform: "none",
-                                fontFamily: "Poppins, sans-serif",
-                              }}
+                          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center" }}>
+                            <CldUploadWidget
+                              uploadPreset="ml_default"
+                              onSuccess={(result) => handleCloudinaryUpload(result, "logo")}
                             >
-                              Change Logo
-                            </Button>
+                              {({ open }) => (
+                                <Button
+                                  variant="outlined"
+                                  startIcon={<Upload size={16} />}
+                                  onClick={() => open()}
+                                  sx={{
+                                    borderColor: "rgba(57,255,20,0.3)",
+                                    color: "#39FF14",
+                                    textTransform: "none",
+                                    fontFamily: "Poppins, sans-serif",
+                                  }}
+                                >
+                                  Change Logo
+                                </Button>
+                              )}
+                            </CldUploadWidget>
                             <Button
                               variant="outlined"
                               startIcon={<Trash2 size={16} />}
+                              onClick={() => handleChange("logo", "")}
                               sx={{
                                 borderColor: "rgba(239,68,68,0.3)",
                                 color: "#EF4444",
@@ -620,6 +640,7 @@ export default function AdminSettingsPage() {
                         background: "#111111",
                         border: "1px solid rgba(57,255,20,0.15)",
                         borderRadius: 3,
+                        mb: 4,
                       }}
                     >
                       <CardContent sx={{ p: 4 }}>
@@ -629,31 +650,64 @@ export default function AdminSettingsPage() {
                             color: "#fff",
                             fontWeight: 600,
                             fontFamily: "Poppins, sans-serif",
-                            mb: 3,
+                            mb: 2,
                           }}
                         >
-                          Maintenance Mode
+                          Store Favicon
                         </Typography>
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={false}
-                              sx={{
-                                "& .MuiSwitch-switchBase.Mui-checked": {
-                                  color: "#39FF14",
-                                },
-                                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                                  backgroundColor: "#39FF14",
-                                },
-                              }}
-                            />
-                          }
-                          label="Enable maintenance mode to restrict store access"
+                        <Box
                           sx={{
-                            color: "#A0A0A0",
-                            fontFamily: "Poppins, sans-serif",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            gap: 3,
                           }}
-                        />
+                        >
+                          <Avatar
+                            src={settings.favicon || "/favicon.ico"}
+                            sx={{
+                              width: 80,
+                              height: 80,
+                              bgcolor: "rgba(57,255,20,0.1)",
+                              border: "2px dashed rgba(57,255,20,0.3)",
+                            }}
+                          />
+                          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center" }}>
+                            <CldUploadWidget
+                              uploadPreset="ml_default"
+                              onSuccess={(result) => handleCloudinaryUpload(result, "favicon")}
+                            >
+                              {({ open }) => (
+                                <Button
+                                  variant="outlined"
+                                  startIcon={<Upload size={16} />}
+                                  onClick={() => open()}
+                                  sx={{
+                                    borderColor: "rgba(57,255,20,0.3)",
+                                    color: "#39FF14",
+                                    textTransform: "none",
+                                    fontFamily: "Poppins, sans-serif",
+                                  }}
+                                >
+                                  Change Favicon
+                                </Button>
+                              )}
+                            </CldUploadWidget>
+                            <Button
+                              variant="outlined"
+                              startIcon={<Trash2 size={16} />}
+                              onClick={() => handleChange("favicon", "")}
+                              sx={{
+                                borderColor: "rgba(239,68,68,0.3)",
+                                color: "#EF4444",
+                                textTransform: "none",
+                                fontFamily: "Poppins, sans-serif",
+                              }}
+                            >
+                              Remove
+                            </Button>
+                          </Box>
+                        </Box>
                       </CardContent>
                     </Card>
                   </Grid>
