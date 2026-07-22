@@ -54,50 +54,8 @@ export default function Footer() {
             </Stack>
           </Grid>
 
-          {/* Column 2: Shop */}
-          <Grid item xs={12} sm={6} md={2}>
-            <Typography
-              variant="h6"
-              sx={{
-                fontFamily: "Bebas Neue, cursive",
-                color: "#fff",
-                mb: 3,
-                letterSpacing: "0.1em",
-              }}
-            >
-              Shop
-            </Typography>
-            <Stack spacing={2}>
-              <Link href="/men" passHref style={{ textDecoration: "none" }}>
-                <Typography variant="body2" sx={{ color: "#A0A0A0", "&:hover": { color: "#39FF14" } }}>
-                  Men
-                </Typography>
-              </Link>
-              <Link href="/women" passHref style={{ textDecoration: "none" }}>
-                <Typography variant="body2" sx={{ color: "#A0A0A0", "&:hover": { color: "#39FF14" } }}>
-                  Women
-                </Typography>
-              </Link>
-              <Link href="/hoodies" passHref style={{ textDecoration: "none" }}>
-                <Typography variant="body2" sx={{ color: "#A0A0A0", "&:hover": { color: "#39FF14" } }}>
-                  Hoodies
-                </Typography>
-              </Link>
-              <Link href="/accessories" passHref style={{ textDecoration: "none" }}>
-                <Typography variant="body2" sx={{ color: "#A0A0A0", "&:hover": { color: "#39FF14" } }}>
-                  Accessories
-                </Typography>
-              </Link>
-              <Link href="/new-arrivals" passHref style={{ textDecoration: "none" }}>
-                <Typography variant="body2" sx={{ color: "#A0A0A0", "&:hover": { color: "#39FF14" } }}>
-                  New Arrivals
-                </Typography>
-              </Link>
-            </Stack>
-          </Grid>
-
-          {/* Column 3: Customer Care */}
-          <Grid item xs={12} sm={6} md={2}>
+          {/* Column 2: Customer Care */}
+          <Grid item xs={12} sm={6} md={4}>
             <Typography
               variant="h6"
               sx={{
@@ -138,8 +96,8 @@ export default function Footer() {
             </Stack>
           </Grid>
 
-          {/* Column 4: Company */}
-          <Grid item xs={12} sm={6} md={2}>
+          {/* Column 3: Company */}
+          <Grid item xs={12} sm={6} md={4}>
             <Typography
               variant="h6"
               sx={{
@@ -152,16 +110,6 @@ export default function Footer() {
               Company
             </Typography>
             <Stack spacing={2}>
-              <Link href="/about" passHref style={{ textDecoration: "none" }}>
-                <Typography variant="body2" sx={{ color: "#A0A0A0", "&:hover": { color: "#39FF14" } }}>
-                  About
-                </Typography>
-              </Link>
-              <Link href="/our-story" passHref style={{ textDecoration: "none" }}>
-                <Typography variant="body2" sx={{ color: "#A0A0A0", "&:hover": { color: "#39FF14" } }}>
-                  Our Story
-                </Typography>
-              </Link>
               <Link href="/careers" passHref style={{ textDecoration: "none" }}>
                 <Typography variant="body2" sx={{ color: "#A0A0A0", "&:hover": { color: "#39FF14" } }}>
                   Careers
@@ -173,24 +121,6 @@ export default function Footer() {
                 </Typography>
               </Link>
             </Stack>
-          </Grid>
-
-          {/* Column 5: Social */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography
-              variant="h6"
-              sx={{
-                fontFamily: "Bebas Neue, cursive",
-                color: "#fff",
-                mb: 3,
-                letterSpacing: "0.1em",
-              }}
-            >
-              Follow Us
-            </Typography>
-            <Typography variant="body2" sx={{ color: "#A0A0A0" }}>
-              Join the movement on social media.
-            </Typography>
           </Grid>
         </Grid>
 
