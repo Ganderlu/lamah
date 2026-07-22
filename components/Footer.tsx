@@ -55,7 +55,7 @@ export default function Footer() {
           </Grid>
 
           {/* Column 2: Customer Care */}
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid item xs={12} sm={6} md={3}>
             <Typography
               variant="h6"
               sx={{
@@ -97,7 +97,7 @@ export default function Footer() {
           </Grid>
 
           {/* Column 3: Company */}
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid item xs={12} sm={6} md={3}>
             <Typography
               variant="h6"
               sx={{
@@ -124,7 +124,7 @@ export default function Footer() {
           </Grid>
 
           {/* Column 4: Movement */}
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid item xs={12} sm={6} md={3}>
             <Box
               sx={{
                 position: "relative",
