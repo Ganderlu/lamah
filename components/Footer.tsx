@@ -8,7 +8,7 @@ import {
 } from "@mui/material";
 import Image from "next/image";
 import Link from "next/link";
-import { Instagram, Youtube, Facebook, Twitter, Music2 } from "lucide-react";
+import { Instagram, Youtube, Twitch, X, Music2 } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -36,19 +36,19 @@ export default function Footer() {
               Every piece we design carries a purpose. Wear the mindset. Live the movement.
             </Typography>
             <Stack direction="row" spacing={2}>
-              <MuiLink href="#" sx={{ color: "#fff", "&:hover": { color: "#39FF14" } }}>
+              <MuiLink href="https://www.instagram.com/notlamarama/" target="_blank" sx={{ color: "#fff", "&:hover": { color: "#39FF14" } }}>
                 <Instagram size={22} />
               </MuiLink>
               <MuiLink href="#" sx={{ color: "#fff", "&:hover": { color: "#39FF14" } }}>
                 <Music2 size={22} />
               </MuiLink>
-              <MuiLink href="#" sx={{ color: "#fff", "&:hover": { color: "#39FF14" } }}>
-                <Facebook size={22} />
+              <MuiLink href="https://www.twitch.tv/r/e/eyJsb2NhdGlvbiI6ImNoYW5uZWxfbmFtZSIsImVtYWlsX2lkIjoiODU4MzIwNDctYmJmOC00MTU5LWJhODctMzVmMTIxZjQ4MWUzIiwibmFtZSI6ImxvZ2luX2NoYW5nZSIsInNvdXJjZV9lbWFpbCI6IiIsImN0YV92YWx1ZSI6IiIsImNoYW5uZWwiOiIiLCJsb2dpbiI6IiJ9/1177990052/30f5746a5e55a7d532394c0440a72b5c667cc09e7a9024c0b23b2ce0300f8d57/notlamarama?ignore_query=true&tt_content=login_change&tt_email_id=85832047-bbf8-4159-ba87-35f121f481e3&tt_medium=email" target="_blank" sx={{ color: "#fff", "&:hover": { color: "#39FF14" } }}>
+                <Twitch size={22} />
               </MuiLink>
-              <MuiLink href="#" sx={{ color: "#fff", "&:hover": { color: "#39FF14" } }}>
-                <Twitter size={22} />
+              <MuiLink href="https://x.com/notlamarama" target="_blank" sx={{ color: "#fff", "&:hover": { color: "#39FF14" } }}>
+                <X size={22} />
               </MuiLink>
-              <MuiLink href="#" sx={{ color: "#fff", "&:hover": { color: "#39FF14" } }}>
+              <MuiLink href="https://m.youtube.com/channel/UC0hT2jgzSioOqkkCcQRN8Rg?ra=m" target="_blank" sx={{ color: "#fff", "&:hover": { color: "#39FF14" } }}>
                 <Youtube size={22} />
               </MuiLink>
             </Stack>
