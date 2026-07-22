@@ -19,7 +19,6 @@ import {
   ShoppingBag,
   Heart,
   MapPin,
-  CreditCard,
   Settings,
   Bell,
   Gift,
@@ -44,7 +43,6 @@ const menuItems = [
   { name: "Track Order", icon: Truck, href: "/dashboard/track-order" },
   { name: "Wishlist", icon: Heart, href: "/wishlist" },
   { name: "My Addresses", icon: MapPin, href: "/dashboard/addresses" },
-  { name: "Payment Methods", icon: CreditCard, href: "/dashboard/payment-methods" },
   { name: "Account Settings", icon: Settings, href: "/dashboard/account-settings" },
   { name: "Logout", icon: LogOut, href: "/" },
 ];
