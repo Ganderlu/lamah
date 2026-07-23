@@ -251,15 +251,15 @@ export default function AdminDashboardPage() {
                         {recentOrders.map((order) => (
                           <TableRow key={order.id}>
                             <TableCell sx={{ color: "#fff", fontWeight: 600 }}>
-                              {order.orderId}
+                              {order.orderNumber}
                             </TableCell>
                             <TableCell>
                               <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                                 <Avatar sx={{ width: 32, height: 32, bgcolor: "#39FF14", color: "#000" }}>
-                                  {order.userId.slice(0, 2).toUpperCase()}
+                                  {order.customerName.slice(0, 2).toUpperCase()}
                                 </Avatar>
                                 <Typography sx={{ color: "#fff", fontWeight: 500 }}>
-                                  {order.userId}
+                                  {order.customerName}
                                 </Typography>
                               </Box>
                             </TableCell>
