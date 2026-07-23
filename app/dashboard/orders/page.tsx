@@ -21,27 +21,17 @@ import OrdersLoadingSkeleton from "@/components/dashboard/orders/OrdersLoadingSk
 import OrdersPagination from "@/components/dashboard/orders/OrdersPagination";
 import OrdersTable from "@/components/dashboard/orders/OrdersTable";
 import { auth, db } from "@/firebase/client";
-import type { CustomerOrder, OrderStatus } from "@/types/order";
+import type { CustomerOrder, OrderStatus, PaymentStatus, PaymentMethod } from "@/types/order";
 
 const PAGE_SIZE = 5;
 
-const toIsoString = (value: unknown) => {
+// Helper to safely convert timestamps
+const toISOString = (value: any): string => {
   if (!value) return new Date().toISOString();
+  if (typeof value.toDate === "function") return value.toDate().toISOString();
+  if (value instanceof Date) return value.toISOString();
   if (typeof value === "string") return value;
-  if (typeof value === "object" && value !== null && "toDate" in value) {
-    return (value as { toDate: () => Date }).toDate().toISOString();
-  }
   return new Date().toISOString();
-};
-
-const normalizeStatus = (value: unknown): Exclude<OrderStatus, "All Orders"> => {
-  const rawStatus = String(value ?? "").toLowerCase();
-
-  if (rawStatus.includes("deliver")) return "Delivered";
-  if (rawStatus.includes("ship") || rawStatus.includes("transit")) return "Shipped";
-  if (rawStatus.includes("cancel")) return "Cancelled";
-  if (rawStatus.includes("return")) return "Returned";
-  return "Processing";
 };
 
 export default function OrdersPage() {
@@ -73,31 +63,69 @@ export default function OrdersPage() {
       try {
         const ordersQuery = query(
           collection(db, "orders"),
-          where("userId", "==", user.uid)
+          where("customerId", "==", user.uid)
         );
         const snapshot = await getDocs(ordersQuery);
 
         const nextOrders: CustomerOrder[] = snapshot.docs.map((docSnapshot) => {
           const data = docSnapshot.data();
-          const items = Array.isArray(data.items) ? data.items : [];
+          
+          // Handle both `products` and `items` field names for backward compatibility
+          const productsOrItems = Array.isArray(data.products) 
+            ? data.products 
+            : (Array.isArray(data.items) ? data.items : []);
+          
+          const products = productsOrItems.map((item: any) => ({
+            id: String(item.id || item.productId || `${docSnapshot.id}-${Math.random()}`),
+            productId: String(item.productId || item.id || ""),
+            name: String(item.name || "Lamah Product"),
+            image: String(item.image || "/images/lamahhlogo.png"),
+            size: item.size || "",
+            color: item.color || "",
+            quantity: Number(item.quantity || 1),
+            price: Number(item.price || 0),
+          }));
 
           return {
             id: docSnapshot.id,
-            orderId: String(data.orderId ?? docSnapshot.id).replace(/^#/, ""),
-            userId: String(data.userId ?? user.uid),
-            items: items.map((item: Record<string, unknown>, index: number) => ({
-              id: String(item.id ?? `${docSnapshot.id}-${index}`),
-              name: String(item.name ?? "Lamah Product"),
-              image: String(item.image ?? "/images/lamahhlogo.png"),
-              quantity: Number(item.quantity ?? 1),
-              price: Number(item.price ?? 0),
-            })),
-            total: Number(data.total ?? 0),
-            status: normalizeStatus(data.status || data.shippingStatus),
-            paymentStatus: String(data.paymentStatus ?? "Paid"),
-            shippingStatus: String(data.shippingStatus ?? ""),
-            createdAt: toIsoString(data.createdAt),
-            updatedAt: toIsoString(data.updatedAt),
+            orderNumber: data.orderNumber || data.orderId || `#LMH-${Date.now()}`,
+            customerId: data.customerId || data.userId || user.uid,
+            customerName: data.customerName || user.displayName || "Customer",
+            customerEmail: data.customerEmail || user.email || "",
+            customerPhone: data.customerPhone || "",
+            customerAvatar: data.customerAvatar || user.photoURL || "",
+            products: products,
+            subtotal: data.subtotal || 0,
+            shippingFee: data.shippingFee || 0,
+            discount: data.discount || 0,
+            tax: data.tax || 0,
+            total: data.total || 0,
+            paymentMethod: (data.paymentMethod as PaymentMethod) || "card",
+            paymentStatus: (data.paymentStatus as PaymentStatus) || "Pending",
+            transactionId: data.transactionId || "",
+            deliveryStatus: (data.deliveryStatus || data.shippingStatus || data.status || "Pending") as OrderStatus,
+            trackingNumber: data.trackingNumber || "",
+            courier: data.courier || "",
+            estimatedDelivery: data.estimatedDelivery ? toISOString(data.estimatedDelivery) : "",
+            shippingAddress: data.shippingAddress || {
+              street: "",
+              city: "",
+              state: "",
+              postalCode: "",
+              country: "",
+            },
+            billingAddress: data.billingAddress || {
+              street: "",
+              city: "",
+              state: "",
+              postalCode: "",
+              country: "",
+            },
+            status: (data.status || data.deliveryStatus || data.shippingStatus || "Pending") as OrderStatus,
+            adminNotes: data.adminNotes || [],
+            timeline: data.timeline || [],
+            createdAt: toISOString(data.createdAt),
+            updatedAt: toISOString(data.updatedAt),
           };
         });
 

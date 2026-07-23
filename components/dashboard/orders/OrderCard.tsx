@@ -15,7 +15,7 @@ const currencyFormatter = new Intl.NumberFormat("en-NG", {
 });
 
 export default function OrderCard({ order }: { order: CustomerOrder }) {
-  const firstItem = order.items[0];
+  const firstItem = order.products[0];
 
   return (
     <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
@@ -41,7 +41,7 @@ export default function OrderCard({ order }: { order: CustomerOrder }) {
             >
               <Image
                 src={firstItem?.image || "/images/lamahhlogo.png"}
-                alt={firstItem?.name || order.orderId}
+                alt={firstItem?.name || order.orderNumber}
                 fill
                 sizes="72px"
                 style={{ objectFit: "cover" }}
@@ -65,7 +65,7 @@ export default function OrderCard({ order }: { order: CustomerOrder }) {
                   fontFamily: "Inter, sans-serif",
                 }}
               >
-                #{order.orderId}
+                {order.orderNumber}
               </Typography>
             </Box>
           </Box>
@@ -96,7 +96,7 @@ export default function OrderCard({ order }: { order: CustomerOrder }) {
                 Items
               </Typography>
               <Typography sx={{ color: "#FFFFFF", fontFamily: "Inter, sans-serif" }}>
-                {order.items.length}
+                {order.products.length}
               </Typography>
             </Box>
             <Box>
@@ -111,7 +111,7 @@ export default function OrderCard({ order }: { order: CustomerOrder }) {
 
           <Button
             component={Link}
-            href={`/dashboard/track-order?orderId=${order.orderId}`}
+            href={`/dashboard/track-order?orderId=${order.orderNumber.replace(/^#/, "")}`}
             fullWidth
             endIcon={<ArrowRight size={16} />}
             variant="outlined"

@@ -53,7 +53,7 @@ export default function OrdersTable({ orders }: { orders: CustomerOrder[] }) {
         </TableHead>
         <TableBody>
           {orders.map((order, index) => {
-            const firstItem = order.items[0];
+            const firstItem = order.products[0];
             const safeStatus = order.status === "All Orders" ? "Processing" : order.status;
 
             return (
@@ -91,7 +91,7 @@ export default function OrdersTable({ orders }: { orders: CustomerOrder[] }) {
                     >
                       <Image
                         src={firstItem?.image || "/images/lamahhlogo.png"}
-                        alt={firstItem?.name || order.orderId}
+                        alt={firstItem?.name || order.orderNumber}
                         fill
                         sizes="60px"
                         style={{ objectFit: "cover" }}
@@ -114,7 +114,7 @@ export default function OrdersTable({ orders }: { orders: CustomerOrder[] }) {
                           fontFamily: "Poppins, sans-serif",
                         }}
                       >
-                        {order.items.length} item{order.items.length > 1 ? "s" : ""}
+                        {order.products.length} item{order.products.length > 1 ? "s" : ""}
                       </Typography>
                     </Box>
                   </Box>
@@ -127,7 +127,7 @@ export default function OrdersTable({ orders }: { orders: CustomerOrder[] }) {
                       fontWeight: 600,
                     }}
                   >
-                    #{order.orderId}
+                    {order.orderNumber}
                   </Typography>
                 </TableCell>
                 <TableCell sx={{ color: "#A0A0A0", fontFamily: "Poppins, sans-serif" }}>
@@ -138,7 +138,7 @@ export default function OrdersTable({ orders }: { orders: CustomerOrder[] }) {
                   })}
                 </TableCell>
                 <TableCell sx={{ color: "#FFFFFF", fontFamily: "Inter, sans-serif" }}>
-                  {order.items.length}
+                  {order.products.length}
                 </TableCell>
                 <TableCell sx={{ color: "#FFFFFF", fontFamily: "Inter, sans-serif", fontWeight: 700 }}>
                   {currencyFormatter.format(order.total)}
@@ -149,7 +149,7 @@ export default function OrdersTable({ orders }: { orders: CustomerOrder[] }) {
                 <TableCell align="right">
                   <Button
                     component={Link}
-                    href={`/dashboard/track-order?orderId=${order.orderId}`}
+                    href={`/dashboard/track-order?orderId=${order.orderNumber.replace(/^#/, "")}`}
                     variant="outlined"
                     endIcon={<ArrowRight size={16} />}
                     sx={{
