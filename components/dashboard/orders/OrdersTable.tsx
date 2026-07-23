@@ -54,7 +54,7 @@ export default function OrdersTable({ orders }: { orders: CustomerOrder[] }) {
         <TableBody>
           {orders.map((order, index) => {
             const firstItem = order.products[0];
-            const safeStatus = order.status === "All Orders" ? "Processing" : order.status;
+            const safeStatus = order.status;
 
             return (
               <TableRow

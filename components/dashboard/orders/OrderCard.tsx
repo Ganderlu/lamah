@@ -104,7 +104,7 @@ export default function OrderCard({ order }: { order: CustomerOrder }) {
                 Status
               </Typography>
               <Box sx={{ mt: 0.5 }}>
-                <StatusBadge status={order.status === "All Orders" ? "Processing" : order.status} />
+                <StatusBadge status={order.status} />
               </Box>
             </Box>
           </Box>
