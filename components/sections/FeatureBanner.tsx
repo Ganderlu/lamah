@@ -57,11 +57,11 @@ export default function FeatureBanner() {
                 mb: 2,
               }}
             >
-              The New In Edit for Men
+              Check Out Our Shop...
             </Typography>
             <Button
               component={Link}
-              href="/men"
+              href="/shop"
               variant="outlined"
               sx={{
                 borderColor: "rgba(255,255,255,0.5)",

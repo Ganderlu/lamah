@@ -16,12 +16,37 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { motion } from "framer-motion";
 import { useCartStore } from "@/lib/store/cart";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { Minus, Plus, Trash2, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, getTotalPrice, getTotalItems } =
     useCartStore();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleCheckout = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ cartItems: items }),
+      });
+
+      const { url } = await response.json();
+
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (error) {
+      console.error("Error during checkout:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <>
@@ -296,6 +321,8 @@ export default function CartPage() {
                       <Button
                         fullWidth
                         variant="contained"
+                        disabled={isLoading}
+                        onClick={handleCheckout}
                         sx={{
                           bgcolor: "#39FF14",
                           color: "#000",
@@ -305,9 +332,11 @@ export default function CartPage() {
                           fontSize: "1rem",
                           textTransform: "uppercase",
                           "&:hover": { bgcolor: "#2dd610" },
+                          "&:disabled": { bgcolor: "#2dd610", opacity: 0.7 },
                         }}
                       >
-                        Proceed to Checkout
+                        {isLoading ? <Loader2 className="animate-spin mr-2" /> : null}
+                        {isLoading ? "Processing..." : "Proceed to Checkout"}
                       </Button>
                     </Paper>
                   </motion.div>

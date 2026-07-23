@@ -11,6 +11,8 @@ import {
   Chip,
   CircularProgress,
   Button,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import Image from "next/image";
 import Navbar from "@/components/Navbar";
@@ -19,11 +21,13 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import { Plus } from "lucide-react";
 import { fetchCollections } from "@/lib/collections";
 import { fetchProducts } from "@/lib/products";
 import type { Collection } from "@/types/collection";
 import type { Product } from "@/types/product";
 import { formatCurrency } from "@/lib/utils";
+import { useCartStore } from "@/lib/store/cart";
 
 export default function CollectionDetailPage() {
   const params = useParams();
@@ -31,6 +35,21 @@ export default function CollectionDetailPage() {
   const [collection, setCollection] = useState<Collection | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const addItem = useCartStore((state) => state.addItem);
+
+  const handleAddToCart = async (product: Product) => {
+    if (!product.id) return;
+
+    await addItem({
+      id: product.id,
+      name: product.name,
+      price: product.discountPrice || product.price,
+      image: product.thumbnail || "/images/lamahwhiteb.png",
+    });
+
+    setSnackbarOpen(true);
+  };
 
   useEffect(() => {
     if (!slug) return;
@@ -247,81 +266,105 @@ export default function CollectionDetailPage() {
                         }}
                       >
                         <Link href={`/product/${product.id}`} passHref style={{ textDecoration: "none" }}>
-                          <CardMedia
-                            sx={{ position: "relative", height: 300 }}
-                          >
-                            <Image
-                              src={product.thumbnail || "/images/lamahwhiteb.png"}
-                              alt={product.name}
-                              fill
-                              style={{ objectFit: "cover" }}
-                            />
-                            {product.discountPrice && (
-                              <Chip
-                                label="SALE"
-                                sx={{
-                                  position: "absolute",
-                                  top: 16,
-                                  left: 16,
-                                  bgcolor: "#EF4444",
-                                  color: "#fff",
-                                  fontWeight: 700,
-                                }}
-                              />
-                            )}
-                            {product.featured && (
-                              <Chip
-                                label="FEATURED"
-                                sx={{
-                                  position: "absolute",
-                                  top: 16,
-                                  right: 16,
-                                  bgcolor: "#39FF14",
-                                  color: "#000",
-                                  fontWeight: 700,
-                                }}
-                              />
-                            )}
-                          </CardMedia>
-                          <CardContent sx={{ p: 3 }}>
-                            <Typography
-                              variant="h6"
-                              sx={{
-                                color: "#fff",
-                                fontFamily: "Poppins, sans-serif",
-                                fontWeight: 600,
-                                mb: 1,
-                                fontSize: "1rem",
-                              }}
+                          <Box>
+                            <CardMedia
+                              sx={{ position: "relative", height: 300 }}
                             >
-                              {product.name}
-                            </Typography>
-                            <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+                              <Image
+                                src={product.thumbnail || "/images/lamahwhiteb.png"}
+                                alt={product.name}
+                                fill
+                                style={{ objectFit: "cover" }}
+                              />
+                              {product.discountPrice && (
+                                <Chip
+                                  label="SALE"
+                                  sx={{
+                                    position: "absolute",
+                                    top: 16,
+                                    left: 16,
+                                    bgcolor: "#EF4444",
+                                    color: "#fff",
+                                    fontWeight: 700,
+                                  }}
+                                />
+                              )}
+                              {product.featured && (
+                                <Chip
+                                  label="FEATURED"
+                                  sx={{
+                                    position: "absolute",
+                                    top: 16,
+                                    right: 16,
+                                    bgcolor: "#39FF14",
+                                    color: "#000",
+                                    fontWeight: 700,
+                                  }}
+                                />
+                              )}
+                            </CardMedia>
+                            <CardContent sx={{ p: 3, pb: 2 }}>
                               <Typography
+                                variant="h6"
                                 sx={{
-                                  color: "#39FF14",
+                                  color: "#fff",
                                   fontFamily: "Poppins, sans-serif",
-                                  fontWeight: 700,
-                                  fontSize: "1.25rem",
+                                  fontWeight: 600,
+                                  mb: 1,
+                                  fontSize: "1rem",
                                 }}
                               >
-                                {formatCurrency(product.discountPrice || product.price)}
+                                {product.name}
                               </Typography>
-                              {product.discountPrice && (
+                              <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
                                 <Typography
                                   sx={{
-                                    color: "#A0A0A0",
+                                    color: "#39FF14",
                                     fontFamily: "Poppins, sans-serif",
-                                    fontSize: "1rem",
-                                    textDecoration: "line-through",
+                                    fontWeight: 700,
+                                    fontSize: "1.25rem",
                                   }}
                                 >
-                                  {formatCurrency(product.price)}
+                                  {formatCurrency(product.discountPrice || product.price)}
                                 </Typography>
-                              )}
-                            </Box>
-                          </CardContent>
+                                {product.discountPrice && (
+                                  <Typography
+                                    sx={{
+                                      color: "#A0A0A0",
+                                      fontFamily: "Poppins, sans-serif",
+                                      fontSize: "1rem",
+                                      textDecoration: "line-through",
+                                    }}
+                                  >
+                                    {formatCurrency(product.price)}
+                                  </Typography>
+                                )}
+                              </Box>
+                            </CardContent>
+                          </Box>
                         </Link>
+                        <Box sx={{ px: 3, pb: 3 }}>
+                          <Button
+                            fullWidth
+                            variant="outlined"
+                            startIcon={<Plus size={16} />}
+                            onClick={() => handleAddToCart(product)}
+                            sx={{
+                              borderColor: "rgba(57,255,20,0.5)",
+                              color: "#39FF14",
+                              fontFamily: "Poppins, sans-serif",
+                              fontWeight: 600,
+                              textTransform: "none",
+                              py: 1.1,
+                              "&:hover": {
+                                borderColor: "#39FF14",
+                                bgcolor: "rgba(57,255,20,0.1)",
+                              },
+                            }}
+                          >
+                            + Add to Cart
+                          </Button>
+                        </Box>
                       </Card>
                     </motion.div>
                   </Grid>
@@ -331,6 +374,16 @@ export default function CollectionDetailPage() {
           </motion.div>
         </Container>
       </Box>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity="success" sx={{ width: "100%" }}>
+          Added to cart!
+        </Alert>
+      </Snackbar>
       <Footer />
     </>
   );
