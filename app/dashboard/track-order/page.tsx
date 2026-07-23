@@ -220,16 +220,16 @@ export default function TrackOrder() {
                   <Box sx={{ display: "flex", justifyContent: "space-between", mb: 3, flexWrap: "wrap", gap: 2, alignItems: "center" }}>
                     <Box>
                       <Typography
-                        variant="h6"
-                        sx={{
-                          color: "#A0A0A0",
-                          fontFamily: "Poppins, sans-serif",
-                          mb: 0.5,
-                          fontWeight: 600,
-                        }}
-                      >
-                        ORDER #{order.orderId}
-                      </Typography>
+                          variant="h6"
+                          sx={{
+                            color: "#A0A0A0",
+                            fontFamily: "Poppins, sans-serif",
+                            mb: 0.5,
+                            fontWeight: 600,
+                          }}
+                        >
+                          ORDER #{order.orderNumber}
+                        </Typography>
                       <Typography
                         variant="h4"
                         sx={{
@@ -358,7 +358,7 @@ export default function TrackOrder() {
                     Order Items
                   </Typography>
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                    {order.items.map((item) => (
+                    {order.products.map((item) => (
                       <Box
                         key={item.id}
                         sx={{
@@ -468,7 +468,7 @@ export default function TrackOrder() {
                       mb: 1,
                     }}
                   >
-                    Customer Name
+                    {order.customerName}
                   </Typography>
                   <Typography
                     variant="body2"
@@ -477,7 +477,9 @@ export default function TrackOrder() {
                       fontFamily: "Poppins, sans-serif",
                     }}
                   >
-                    Address will be shown here
+                    {order.shippingAddress.street}<br />
+                    {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}<br />
+                    {order.shippingAddress.country}
                   </Typography>
                 </CardContent>
               </Card>
