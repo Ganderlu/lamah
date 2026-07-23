@@ -4,13 +4,13 @@ import { Chip } from "@mui/material";
 import type { OrderStatus } from "@/types/order";
 
 const statusStyles: Record<
-  Exclude<OrderStatus, "All Orders">,
+  OrderStatus,
   { color: string; background: string; border: string }
 > = {
-  Delivered: {
-    color: "#39FF14",
-    background: "rgba(57,255,20,0.1)",
-    border: "rgba(57,255,20,0.22)",
+  Pending: {
+    color: "#F59E0B",
+    background: "rgba(245,158,11,0.12)",
+    border: "rgba(245,158,11,0.22)",
   },
   Processing: {
     color: "#F5A623",
@@ -21,6 +21,16 @@ const statusStyles: Record<
     color: "#3B82F6",
     background: "rgba(59,130,246,0.12)",
     border: "rgba(59,130,246,0.24)",
+  },
+  "Out For Delivery": {
+    color: "#8B5CF6",
+    background: "rgba(139,92,246,0.12)",
+    border: "rgba(139,92,246,0.22)",
+  },
+  Delivered: {
+    color: "#39FF14",
+    background: "rgba(57,255,20,0.1)",
+    border: "rgba(57,255,20,0.22)",
   },
   Cancelled: {
     color: "#EF4444",
@@ -34,7 +44,7 @@ const statusStyles: Record<
   },
 };
 
-export default function StatusBadge({ status }: { status: Exclude<OrderStatus, "All Orders"> }) {
+export default function StatusBadge({ status }: { status: OrderStatus }) {
   const style = statusStyles[status];
 
   return (
