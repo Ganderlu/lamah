@@ -1,12 +1,33 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: "2026-06-24.dahlia",
-});
-
 export async function POST(request: Request) {
   try {
+    // Get and validate environment variables
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+
+    if (!stripeSecretKey) {
+      console.error("STRIPE_SECRET_KEY is not set");
+      return NextResponse.json(
+        { error: "Stripe configuration missing" },
+        { status: 500 }
+      );
+    }
+
+    if (!baseUrl) {
+      console.error("NEXT_PUBLIC_BASE_URL is not set");
+      return NextResponse.json(
+        { error: "Base URL configuration missing" },
+        { status: 500 }
+      );
+    }
+
+    // Initialize Stripe only when needed, inside the function
+    const stripe = new Stripe(stripeSecretKey, {
+      apiVersion: "2026-06-24.dahlia",
+    });
+
     const { cartItems } = await request.json();
 
     if (!cartItems || cartItems.length === 0) {
@@ -32,8 +53,8 @@ export async function POST(request: Request) {
       payment_method_types: ["card"],
       line_items: lineItems,
       mode: "payment",
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/shop?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/cart?canceled=true`,
+      success_url: `${baseUrl}/shop?success=true`,
+      cancel_url: `${baseUrl}/cart?canceled=true`,
     });
 
     return NextResponse.json({ url: session.url });
