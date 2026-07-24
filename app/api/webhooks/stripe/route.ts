@@ -200,7 +200,6 @@ async function handleCheckoutSessionCompleted(
     payment_status,
     metadata,
     customer_details,
-    shipping_details,
     shipping_cost,
     amount_subtotal,
     amount_discount,
@@ -208,10 +207,25 @@ async function handleCheckoutSessionCompleted(
     created,
   } = session;
 
+  // 'shipping_details' shape differs across Stripe SDK releases and may not
+  // be declared directly on the Checkout.Session type, so read it as a raw
+  // optional property with fallbacks.
+  const rawSession = session as Record<string, unknown>;
+  const shipping_details:
+    | {
+        name?: string | null;
+        phone?: string | null;
+        address?: Stripe.Address | null;
+      }
+    | undefined =
+    rawSession && typeof rawSession.shipping_details === "object" && rawSession.shipping_details != null
+      ? (rawSession.shipping_details as NonNullable<typeof shipping_details>)
+      : undefined;
+
   const paymentIntentId =
     typeof payment_intent === "string" ? payment_intent : payment_intent?.id;
   const customerId = typeof customer === "string" ? customer : customer?.id;
-  const email = customer_details?.email ?? customer_details?.email ?? null;
+  const email = customer_details?.email ?? null;
   const customerName =
     shipping_details?.name ??
     customer_details?.name ??
