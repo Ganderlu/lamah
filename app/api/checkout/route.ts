@@ -37,17 +37,28 @@ export async function POST(request: Request) {
       );
     }
 
-    const lineItems = cartItems.map((item: any) => ({
-      price_data: {
-        currency: "usd",
-        product_data: {
-          name: item.name,
-          images: [item.image],
-        },
-        unit_amount: Math.round(item.price * 100),
+const lineItems = cartItems.map((item: any) => {
+  let imageUrl = item.image;
+
+  // Convert relative URLs to absolute
+  if (imageUrl) {
+    if (!imageUrl.startsWith('http')) {
+      imageUrl = `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+    }
+  }
+
+  return {
+    price_data: {
+      currency: "usd",
+      product_data: {
+        name: item.name,
+        images: imageUrl ? [imageUrl] : [],   // Empty array is safer than invalid URL
       },
-      quantity: item.quantity,
-    }));
+      unit_amount: Math.round(item.price * 100),
+    },
+    quantity: item.quantity,
+  };
+});
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
