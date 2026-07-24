@@ -191,6 +191,11 @@ async function handleCheckoutSessionCompleted(
   });
 
   // ---- Extract every field the event gives us (audit-log everything) ----
+  // Note: across Stripe SDK + API version combinations, fields such as
+  // amount_discount, amount_tax, amount_subtotal, shipping_cost, created,
+  // and shipping_details are variably declared on Checkout.Session types.
+  // We read the well-known ones via the declared type and the remainder via
+  // a widened raw view so the handler remains forward-compatible.
   const {
     id: sessionId,
     payment_intent,
@@ -200,17 +205,38 @@ async function handleCheckoutSessionCompleted(
     payment_status,
     metadata,
     customer_details,
-    shipping_cost,
-    amount_subtotal,
-    amount_discount,
-    amount_tax,
-    created,
   } = session;
+
+  const rawSession = session as Record<string, unknown>;
+
+  const getRawNumber = (key: string): number | undefined => {
+    const v = rawSession[key];
+    return typeof v === "number" ? v : undefined;
+  };
+
+  const amount_subtotal = getRawNumber("amount_subtotal");
+  const amount_discount = getRawNumber("amount_discount");
+  const amount_tax = getRawNumber("amount_tax");
+  const created = getRawNumber("created");
+
+  const shipping_cost_raw = rawSession.shipping_cost;
+  const shipping_cost:
+    | {
+        amount_subtotal?: number | null;
+        amount_tax?: number | null;
+        amount_total?: number | null;
+      }
+    | null
+    | undefined =
+    typeof shipping_cost_raw === "object" && shipping_cost_raw != null
+      ? (shipping_cost_raw as NonNullable<typeof shipping_cost>)
+      : typeof shipping_cost_raw === "number"
+      ? { amount_total: shipping_cost_raw }
+      : undefined;
 
   // 'shipping_details' shape differs across Stripe SDK releases and may not
   // be declared directly on the Checkout.Session type, so read it as a raw
   // optional property with fallbacks.
-  const rawSession = session as Record<string, unknown>;
   const shipping_details:
     | {
         name?: string | null;
