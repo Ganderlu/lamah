@@ -346,7 +346,9 @@ async function handleCheckoutSessionCompleted(
   );
   const total = Number(((amount_total ?? 0) / divisor).toFixed(2));
 
-  const createdAtISO = new Date(created * 1000).toISOString();
+  const createdAtISO = new Date(
+    ((created ?? Math.floor(Date.now() / 1000)) * 1000)
+  ).toISOString();
 
   // =====================================================================
   // TODO: PERSIST THE ORDER (Firebase / Postgres / Supabase / etc.)
