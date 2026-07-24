@@ -141,20 +141,27 @@ async function getCheckoutLineItems(
   const items: OrderItem[] =
     expanded.line_items?.data.map((li, idx): OrderItem => {
       const price = li.price;
-      const productObj: Stripe.Product | null =
+      const productObj: Stripe.Product | Stripe.DeletedProduct | null =
         price && typeof price.product === "object" ? price.product : null;
+      const isLiveProduct =
+        productObj && !("deleted" in productObj && productObj.deleted === true);
       const name: string =
         li.description ??
-        (productObj ? productObj.name : null) ??
+        (isLiveProduct ? productObj.name : null) ??
         `Product ${idx + 1}`;
       const unitAmount = li.amount_total != null && li.quantity ? li.amount_total / li.quantity / 100 : 0;
-      const image = productObj && Array.isArray(productObj.images) && productObj.images[0]
+      const image =
+        isLiveProduct && Array.isArray(productObj.images) && productObj.images[0]
           ? productObj.images[0]
           : "";
       return {
         id: li.id,
         productId:
-          (typeof price?.product === "string" ? price.product : productObj?.id) ?? li.id,
+          (typeof price?.product === "string"
+            ? price.product
+            : isLiveProduct
+            ? productObj.id
+            : null) ?? li.id,
         name,
         image,
         quantity: li.quantity ?? 1,
