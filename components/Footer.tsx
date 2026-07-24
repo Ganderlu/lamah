@@ -85,11 +85,6 @@ export default function Footer() {
                   Returns
                 </Typography>
               </Link>
-              <Link href="/size-guide" passHref style={{ textDecoration: "none" }}>
-                <Typography variant="body2" sx={{ color: "#A0A0A0", "&:hover": { color: "#39FF14" } }}>
-                  Size Guide
-                </Typography>
-              </Link>
             </Stack>
           </Grid>
 

@@ -1,5 +1,6 @@
 
 "use client";
+import { useState } from "react";
 import {
   Box,
   Drawer,
@@ -13,6 +14,7 @@ import {
   IconButton,
   useMediaQuery,
   useTheme,
+  CircularProgress,
 } from "@mui/material";
 import {
   LayoutDashboard,
@@ -30,8 +32,14 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { signOut } from "firebase/auth";
+import { auth } from "@/firebase/client";
+import { useEffect } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { fetchAdminProfile } from "@/lib/admin";
+import type { Admin } from "@/types/admin";
 
 const menuItems = [
   { name: "Dashboard", icon: LayoutDashboard, href: "/admin" },
@@ -42,7 +50,6 @@ const menuItems = [
   { name: "Collections", icon: Star, href: "/admin/collections" },
   { name: "Customers", icon: Users, href: "/admin/customers" },
   { name: "Settings", icon: Settings, href: "/admin/settings" },
-  { name: "Logout", icon: LogOut, href: "/" },
 ];
 
 export default function AdminSidebar({
@@ -55,6 +62,65 @@ export default function AdminSidebar({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
   const pathname = usePathname();
+  const router = useRouter();
+  const [adminProfile, setAdminProfile] = useState<Admin | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [signingOut, setSigningOut] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        if (!cancelled) {
+          setAdminProfile(null);
+          setLoadingProfile(false);
+        }
+        return;
+      }
+      try {
+        const profile = await fetchAdminProfile();
+        if (!cancelled) setAdminProfile(profile);
+      } catch (err) {
+        console.error("Sidebar admin load error:", err);
+      } finally {
+        if (!cancelled) setLoadingProfile(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error("Admin sign-out error:", err);
+    } finally {
+      router.replace("/admin/login");
+    }
+  };
+
+  const displayName = loadingProfile
+    ? "Admin"
+    : adminProfile?.name || adminProfile?.firstName
+    ? `${adminProfile?.firstName ?? ""} ${adminProfile?.lastName ?? ""}`.trim() || "Admin"
+    : "Admin";
+  const displayRole =
+    loadingProfile || !adminProfile?.role
+      ? "Super Admin"
+      : adminProfile.role
+          .split("_")
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ");
+  const avatarInitial = displayName.charAt(0).toUpperCase();
+  const avatarSrc =
+    !loadingProfile && adminProfile?.profileImage
+      ? adminProfile.profileImage
+      : undefined;
 
   const sidebarContent = (
     <Box
@@ -98,18 +164,27 @@ export default function AdminSidebar({
       {/* Admin Profile */}
       <Box sx={{ p: 3, borderBottom: "1px solid rgba(57,255,20,0.1)" }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Avatar
-            sx={{
-              width: 48,
-              height: 48,
-              bgcolor: "#39FF14",
-              color: "#000",
-              fontWeight: 700,
-              fontSize: "1.25rem",
-            }}
-          >
-            A
-          </Avatar>
+          {loadingProfile ? (
+            <CircularProgress
+              size={48}
+              thickness={4}
+              sx={{ color: "#39FF14" }}
+            />
+          ) : (
+            <Avatar
+              src={avatarSrc}
+              sx={{
+                width: 48,
+                height: 48,
+                bgcolor: "#39FF14",
+                color: "#000",
+                fontWeight: 700,
+                fontSize: "1.25rem",
+              }}
+            >
+              {avatarInitial}
+            </Avatar>
+          )}
           <Box sx={{ flex: 1 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <Typography
@@ -120,7 +195,7 @@ export default function AdminSidebar({
                   fontFamily: "Poppins, sans-serif",
                 }}
               >
-                Admin
+                {displayName}
               </Typography>
               <CheckCircle2 size={14} color="#39FF14" />
             </Box>
@@ -131,7 +206,7 @@ export default function AdminSidebar({
                 fontFamily: "Poppins, sans-serif",
               }}
             >
-              Super Admin
+              {displayRole}
             </Typography>
           </Box>
         </Box>
@@ -201,6 +276,53 @@ export default function AdminSidebar({
             </motion.div>
           );
         })}
+
+        {/* Logout */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3, delay: menuItems.length * 0.05 }}
+        >
+          <ListItem disablePadding>
+            <ListItemButton
+              onClick={handleLogout}
+              disabled={signingOut}
+              sx={{
+                borderRadius: 2,
+                px: 2,
+                py: 1.5,
+                color: "#fff",
+                border: "1px solid rgba(239,68,68,0.15)",
+                bgcolor: "rgba(239,68,68,0.04)",
+                "&:hover": {
+                  bgcolor: "rgba(239,68,68,0.12)",
+                  borderColor: "rgba(239,68,68,0.35)",
+                },
+                "&.Mui-disabled": {
+                  color: "rgba(255,255,255,0.4)",
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: "#EF4444", minWidth: 40 }}>
+                {signingOut ? (
+                  <CircularProgress size={20} sx={{ color: "#EF4444" }} />
+                ) : (
+                  <LogOut size={20} />
+                )}
+              </ListItemIcon>
+              <ListItemText
+                primary={signingOut ? "Signing out..." : "Logout"}
+                sx={{
+                  "& .MuiListItemText-primary": {
+                    fontFamily: "Poppins, sans-serif",
+                    fontWeight: 600,
+                    fontSize: "0.875rem",
+                  },
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+        </motion.div>
       </List>
     </Box>
   );
