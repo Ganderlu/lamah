@@ -83,13 +83,17 @@ const registerSchema = z
       ["super_admin", "manager", "director", "inventory_manager", "marketing_manager", "customer_support"],
       { required_error: "Please select a role" }
     ),
-    terms: z.literal(true, {
-      errorMap: () => ({ message: "You must accept the Terms of Service and Privacy Policy" }),
+    terms: z.boolean({
+      required_error: "You must accept the Terms of Service and Privacy Policy",
     }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
+  })
+  .refine((data) => data.terms === true, {
+    message: "You must accept the Terms of Service and Privacy Policy",
+    path: ["terms"],
   });
 
 type RegisterInputs = z.infer<typeof registerSchema>;
