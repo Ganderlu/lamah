@@ -3,6 +3,33 @@ import { NextResponse } from "next/server";
 import type { Address, OrderItem, PaymentMethod, PaymentStatus, OrderStatus } from "@/types/order";
 
 /**
+ * Zero-decimal (smallest-unit-only) currencies recognised by Stripe.
+ *
+ * Money sent by Stripe is ALWAYS in the currency's smallest unit.
+ *   - 2-decimal currencies (USD, EUR, GBP, …): divide by 100
+ *   - 0-decimal currencies (JPY, KRW, …):       divide by 1
+ *   - 3-decimal currencies (BHD, …):            divide by 1000
+ *
+ * The SDK's `Stripe.CURRENCIES_WITHOUT_DECIMALS` was removed in v22, so we
+ * maintain the list here inline along with Stripe's published three-decimal
+ * set. Reference: https://docs.stripe.com/currencies
+ */
+const ZERO_DECIMAL_CURRENCIES = new Set<string>([
+  "bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga", "pyg", "rwf",
+  "ugx", "vnd", "vuv", "xaf", "xof", "xpf",
+]);
+const THREE_DECIMAL_CURRENCIES = new Set<string>([
+  "bhd", "jod", "kwd", "omr", "tnd",
+]);
+
+function smallestUnitDivisor(currency: string | null | undefined): number {
+  const key = (currency ?? "usd").toLowerCase();
+  if (ZERO_DECIMAL_CURRENCIES.has(key)) return 1;
+  if (THREE_DECIMAL_CURRENCIES.has(key)) return 1000;
+  return 100;
+}
+
+/**
  * Stripe Webhook Handler — Next.js 16 App Router (Vercel-ready)
  *
  * Endpoint: POST /api/webhooks/stripe
@@ -308,22 +335,16 @@ async function handleCheckoutSessionCompleted(
 
   const orderStatus: OrderStatus = paymentStatus === "Paid" ? "Processing" : "Pending";
 
-  // Money math: Stripe amounts are always in the SMALLEST unit (cents).
-  // For `currency: usd` divide by 100; for zero-decimal currencies (JPY)
-  // the divisor is 1. We normalise by checking Stripe's currency metadata.
-  const currencySmallest =
-    Stripe.CURRENCIES_WITHOUT_DECIMALS?.includes(
-      (currency ?? "usd").toLowerCase() as Stripe.ZeroDecimalCurrency
-    ) ?? false
-      ? 1
-      : 100;
-  const subtotal = Number(((amount_subtotal ?? 0) / currencySmallest).toFixed(2));
-  const discount = Number(((amount_discount ?? 0) / currencySmallest).toFixed(2));
-  const tax = Number(((amount_tax ?? 0) / currencySmallest).toFixed(2));
+  // Money math: Stripe amounts are always in the SMALLEST unit (cents,
+  // yen, fils, etc.). The divisor depends on the currency.
+  const divisor = smallestUnitDivisor(currency);
+  const subtotal = Number(((amount_subtotal ?? 0) / divisor).toFixed(2));
+  const discount = Number(((amount_discount ?? 0) / divisor).toFixed(2));
+  const tax = Number(((amount_tax ?? 0) / divisor).toFixed(2));
   const shippingFee = Number(
-    (((shipping_cost?.amount_total ?? 0) as number) / currencySmallest).toFixed(2)
+    (((shipping_cost?.amount_total ?? 0) as number) / divisor).toFixed(2)
   );
-  const total = Number(((amount_total ?? 0) / currencySmallest).toFixed(2));
+  const total = Number(((amount_total ?? 0) / divisor).toFixed(2));
 
   const createdAtISO = new Date(created * 1000).toISOString();
 
