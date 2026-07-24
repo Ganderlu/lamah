@@ -207,7 +207,7 @@ async function handleCheckoutSessionCompleted(
     customer_details,
   } = session;
 
-  const rawSession = session as Record<string, unknown>;
+  const rawSession = session as unknown as Record<string, unknown>;
 
   const getRawNumber = (key: string): number | undefined => {
     const v = rawSession[key];
