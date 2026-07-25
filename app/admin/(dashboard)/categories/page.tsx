@@ -1531,7 +1531,7 @@ export default function AdminCategoriesPage() {
                     <Image
                       src={formData.image}
                       alt="Category preview"
-                      fill=""
+                      fill
                       style={{ objectFit: "cover", borderRadius: 8 }}
                     />
                     <Box sx={{ position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)" }}>
@@ -1576,7 +1576,7 @@ export default function AdminCategoriesPage() {
                     <Image
                       src={formData.bannerImage}
                       alt="Banner preview"
-                      fill=""
+                      fill
                       style={{ objectFit: "cover", borderRadius: 8 }}
                     />
                     <Box sx={{ position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)" }}>
@@ -2156,7 +2156,7 @@ export default function AdminCategoriesPage() {
                     <Image
                       src={productFormData.thumbnail}
                       alt="Thumbnail preview"
-                      fill=""
+                      fill
                       style={{ objectFit: "cover", borderRadius: 8 }}
                     />
                     <Box sx={{ position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)" }}>
@@ -2204,7 +2204,7 @@ export default function AdminCategoriesPage() {
                       <Image
                         src={img}
                         alt={`Gallery ${index}`}
-                        fill=""
+                        fill
                         style={{ objectFit: "cover" }}
                       />
                       <IconButton

@@ -113,7 +113,7 @@ export default function WishlistPage() {
                           <Image
                             src={item.image}
                             alt={item.name}
-                            fill=""
+                            fill
                             style={{ objectFit: "cover" }}
                           />
                           <IconButton

@@ -152,7 +152,7 @@ export default function CartPage() {
                           <Image
                             src={item.image}
                             alt={item.name}
-                            fill=""
+                            fill
                             style={{ objectFit: "cover" }}
                           />
                         </Box>

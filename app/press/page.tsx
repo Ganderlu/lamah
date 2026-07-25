@@ -26,7 +26,7 @@ import {
   Download,
   Mail,
   ExternalLink,
-  Image,
+  ImageIcon,
   FileText,
   Calendar,
   Hash,
@@ -39,6 +39,7 @@ import {
   Globe,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 const pressTabs = ["Press Kit", "In The News", "Brand Assets", "Contact"];
 
@@ -736,7 +737,7 @@ export default function PressPage() {
                               <Image
                                 src={a.file}
                                 alt={a.title}
-                                fill=""
+                                fill
                                 sizes="180px"
                                 style={{ objectFit: "contain" }}
                               />

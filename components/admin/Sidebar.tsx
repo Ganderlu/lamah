@@ -78,7 +78,7 @@ export default function AdminSidebar({
         return;
       }
       try {
-        const profile = await fetchAdminProfile();
+        const profile = await fetchAdminProfile(user?.uid ?? null);
         if (!cancelled) setAdminProfile(profile);
       } catch (err) {
         console.error("Sidebar admin load error:", err);

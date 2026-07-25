@@ -15,6 +15,8 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/firebase/client";
 import { fetchUnreadNotificationsCount } from "@/lib/notifications";
 import { fetchUnreadMessagesCount } from "@/lib/messages";
 import { fetchAdminProfile } from "@/lib/admin";
@@ -27,25 +29,30 @@ export default function AdminTopNavbar() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadData = async () => {
+    let cancelled = false;
+    const unsub = onAuthStateChanged(auth, async (user) => {
       try {
-        const [notificationsCount, messagesCount, admin] = await Promise.all([
-          fetchUnreadNotificationsCount(),
-          fetchUnreadMessagesCount(),
-          fetchAdminProfile(),
-        ]);
-        
-        setUnreadNotifications(notificationsCount);
-        setUnreadMessages(messagesCount);
-        setAdminProfile(admin);
+        if (user?.uid) {
+          const [notificationsCount, messagesCount, admin] = await Promise.all([
+            fetchUnreadNotificationsCount().catch(() => 0),
+            fetchUnreadMessagesCount().catch(() => 0),
+            fetchAdminProfile(user.uid),
+          ]);
+          if (cancelled) return;
+          setUnreadNotifications(notificationsCount);
+          setUnreadMessages(messagesCount);
+          setAdminProfile(admin);
+        }
       } catch (error) {
         console.error("Error loading top navbar data:", error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
+    });
+    return () => {
+      cancelled = true;
+      unsub();
     };
-
-    loadData();
   }, []);
 
   // Fallback to sample data if loading or no data
