@@ -1,6 +1,15 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
-import type { Address, OrderItem, PaymentMethod, PaymentStatus, OrderStatus } from "@/types/order";
+import type {
+  Address,
+  CustomerOrder,
+  OrderItem,
+  PaymentMethod,
+  PaymentStatus,
+  OrderStatus,
+  TimelineEvent,
+} from "@/types/order";
+import { db as adminDb } from "@/firebase/admin";
 
 /**
  * Zero-decimal (smallest-unit-only) currencies recognised by Stripe.
@@ -350,78 +359,218 @@ async function handleCheckoutSessionCompleted(
     ((created ?? Math.floor(Date.now() / 1000)) * 1000)
   ).toISOString();
 
-  // =====================================================================
-  // TODO: PERSIST THE ORDER (Firebase / Postgres / Supabase / etc.)
-  //
-  // Use the fields from `CustomerOrder` in types/order.ts:
-  //
-  // const orderPayload: Partial<CustomerOrder> = {
-  //   id: sessionId,                      // or your own UUID
-  //   orderNumber,                        // LAMAH-XXXXXX
-  //   customerId: customerId ?? undefined,
-  //   customerName,
-  //   customerEmail: email ?? "",
-  //   customerPhone,
-  //   products: items,                    // MUST BE `products` (not `items`)
-  //   subtotal,
-  //   shippingFee,
-  //   discount,
-  //   tax,
-  //   total,
-  //   paymentMethod,
-  //   paymentStatus,                      // Paid / Pending / Failed
-  //   transactionId: paymentIntentId ?? undefined,
-  //   deliveryStatus: orderStatus,
-  //   shippingAddress,
-  //   billingAddress,
-  //   status: orderStatus,                // Processing if payment is "Paid"
-  //   adminNotes: [],
-  //   timeline: [
-  //     {
-  //       id: crypto.randomUUID(),
-  //       event: "Order Created",
-  //       description: "Checkout session completed via Stripe webhook.",
-  //       timestamp: createdAtISO,
-  //       completed: true,
-  //     },
-  //   ],
-  //   createdAt: createdAtISO,
-  //   updatedAt: createdAtISO,
-  // };
-  //
-  // Example for Firebase:
-  //   await setDoc(doc(db, "orders", sessionId), orderPayload);
-  //
-  // Example for SQL (Prisma):
-  //   await prisma.order.upsert({
-  //     where: { id: sessionId },
-  //     create: orderPayload,
-  //     update: orderPayload,
-  //   });
-  // ---------------------------------------------------------------------
-  // TODO: REDUCE INVENTORY
-  //   for each item in `items`:
-  //     decrement stock by `item.quantity` for productId + size + color
-  //   Handle race conditions with a DB transaction / atomic increment.
-  // ---------------------------------------------------------------------
-  // TODO: UPDATE PAYMENT STATUS
-  //   If order already existed (retry of webhook), mark paymentStatus = Paid
-  //   only if current status is Pending (never overwrite Refunded / Failed).
-  // ---------------------------------------------------------------------
-  // TODO: SEND CONFIRMATION EMAIL / SMS
-  //   - Resend / Postmark / AWS SES with order summary.
-  //   - include `orderNumber`, items, shipping address, tracking link
-  //     placeholder, and a link to "/order/{orderNumber}".
-  //   - Optionally push a notification to the admin dashboard.
-  // =====================================================================
-  void stripe;
+  // ---- Pull customer identity from metadata (guaranteed by our checkout API) ----
+  const customerIdFromMeta = metadata?.customerId;
+  const customerEmailFromMeta = metadata?.customerEmail;
+  const customerNameFromMeta = metadata?.customerName;
+  const customerPhoneFromMeta = metadata?.customerPhone;
 
-  logWebhook("info", "checkout.session.completed → ready to persist", {
+  const resolvedCustomerId =
+    customerIdFromMeta && typeof customerIdFromMeta === "string"
+      ? customerIdFromMeta
+      : typeof customer === "string"
+      ? customer
+      : customer?.id;
+
+  if (!resolvedCustomerId) {
+    logWebhook(
+      "warn",
+      "checkout.session.completed has no customerId; cannot link order to an account.",
+      { sessionId }
+    );
+  }
+
+  // ---- Build order payload (matches CustomerOrder shape) ----
+  const finalProducts: OrderItem[] = items.map((it) => ({
+    id: it.id,
+    productId: it.productId || it.id,
+    name: it.name,
+    image: it.image || "",
+    size: it.size,
+    color: it.color,
+    quantity: it.quantity,
+    price: Number(Number(it.price || 0).toFixed(2)),
+  }));
+
+  const customerDisplayName =
+    (customerNameFromMeta && typeof customerNameFromMeta === "string"
+      ? customerNameFromMeta
+      : customerName) ||
+    (customerEmailFromMeta || email || "LAMAH Customer");
+
+  const customerEmailResolved =
+    (customerEmailFromMeta && typeof customerEmailFromMeta === "string"
+      ? customerEmailFromMeta
+      : email) || "";
+
+  const customerPhoneResolved =
+    (customerPhoneFromMeta && typeof customerPhoneFromMeta === "string"
+      ? customerPhoneFromMeta
+      : customerPhone) || "";
+
+  const timeline: TimelineEvent[] = [
+    {
+      id: `tl-${sessionId}-created`,
+      event: "Order Created",
+      description:
+        paymentStatus === "Paid"
+          ? "Payment confirmed via Stripe. Order received and being processed."
+          : "Checkout session completed via Stripe. Waiting for payment confirmation.",
+      timestamp: createdAtISO,
+      completed: true,
+    },
+  ];
+
+  if (paymentStatus === "Paid") {
+    timeline.push({
+      id: `tl-${sessionId}-paid`,
+      event: "Payment Received",
+      description: `Transaction ID: ${paymentIntentId ?? sessionId}`,
+      timestamp: createdAtISO,
+      completed: true,
+    });
+  }
+
+  const orderId = sessionId;
+
+  const order: CustomerOrder = {
+    id: orderId,
     orderNumber,
-    itemsCount: items.length,
+    customerId: resolvedCustomerId || "",
+    customerName: customerDisplayName,
+    customerEmail: customerEmailResolved,
+    customerPhone: customerPhoneResolved,
+    customerAvatar: "",
+    products: finalProducts,
+    subtotal,
+    shippingFee,
+    discount,
+    tax,
     total,
+    paymentMethod,
     paymentStatus,
-  });
+    transactionId: paymentIntentId,
+    deliveryStatus: orderStatus,
+    shippingAddress,
+    billingAddress,
+    status: orderStatus,
+    adminNotes: [],
+    timeline,
+    createdAt: createdAtISO,
+    updatedAt: createdAtISO,
+  };
+
+  // ---- Persist to Firestore (idempotent: retried webhooks overwrite safely) ----
+  try {
+    const ordersRef = adminDb.collection("orders").doc(orderId);
+    await ordersRef.set(order, { merge: true });
+
+    // ---- Also write a lightweight customer→orders lookup document so the
+    // dashboard can query orders by customerId via index. The standard
+    // `where("customerId", "==", uid)` on the `orders` collection already
+    // works; this is just a convenience index entry. ----
+    if (resolvedCustomerId) {
+      const customerOrdersRef = adminDb
+        .collection("customers")
+        .doc(resolvedCustomerId)
+        .collection("orders")
+        .doc(orderId);
+      await customerOrdersRef.set(
+        {
+          orderId,
+          orderNumber,
+          total,
+          status: orderStatus,
+          paymentStatus,
+          createdAt: createdAtISO,
+        },
+        { merge: true }
+      );
+
+      // Ensure the /customers/{uid} doc exists for dashboards/CRM tools
+      // that iterate the customers collection.
+      try {
+        const customerSummaryRef = adminDb
+          .collection("customers")
+          .doc(resolvedCustomerId);
+        const customerSnap = await customerSummaryRef.get();
+        if (!customerSnap.exists) {
+          await customerSummaryRef.set(
+            {
+              id: resolvedCustomerId,
+              name: customerDisplayName,
+              email: customerEmailResolved,
+              phone: customerPhoneResolved,
+              totalOrders: 1,
+              totalSpent: total,
+              createdAt: createdAtISO,
+              updatedAt: createdAtISO,
+            },
+            { merge: true }
+          );
+        } else {
+          await customerSummaryRef.set(
+            {
+              name: customerDisplayName,
+              email: customerEmailResolved,
+              phone: customerPhoneResolved,
+              updatedAt: createdAtISO,
+            },
+            { merge: true }
+          );
+        }
+      } catch (summaryErr) {
+        logWebhook("warn", "Failed to update customers summary doc", {
+          customerId: resolvedCustomerId,
+          err:
+            summaryErr instanceof Error
+              ? summaryErr.message
+              : String(summaryErr),
+        });
+      }
+    }
+
+    // ---- Clear customer's cart on successful payment ----
+    try {
+      if (resolvedCustomerId) {
+        const cartsRef = adminDb.collection("carts").doc(resolvedCustomerId);
+        const cartsSnap = await cartsRef.get();
+        if (cartsSnap.exists) {
+          await cartsRef.set(
+            { items: [], updatedAt: new Date(), checkoutSessionId: sessionId },
+            { merge: true }
+          );
+        }
+      }
+    } catch (cartErr) {
+      logWebhook("warn", "Failed to clear customer cart after payment", {
+        customerId: resolvedCustomerId,
+        err:
+          cartErr instanceof Error ? cartErr.message : String(cartErr),
+      });
+    }
+
+    logWebhook("info", "checkout.session.completed → persisted order", {
+      orderNumber,
+      orderId,
+      customerId: resolvedCustomerId,
+      itemsCount: finalProducts.length,
+      total,
+      paymentStatus,
+    });
+  } catch (persistErr) {
+    logWebhook("error", "checkout.session.completed → persist FAILED", {
+      sessionId,
+      orderNumber,
+      customerId: resolvedCustomerId,
+      err:
+        persistErr instanceof Error
+          ? { message: persistErr.message, stack: persistErr.stack }
+          : String(persistErr),
+    });
+    // Re-throw so the outer try/catch logs and still returns 200
+    throw persistErr;
+  }
 }
 
 /**

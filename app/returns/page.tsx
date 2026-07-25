@@ -672,7 +672,7 @@ export default function ReturnsPage() {
                             fontSize: "0.95rem",
                           }}
                         >
-                          support@lamahclothingco.com
+                          lamahclothing@gmail.com
                         </Typography>
                       </Box>
                     </Stack>

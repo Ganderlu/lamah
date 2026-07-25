@@ -70,7 +70,7 @@ const faqs = [
   {
     question: "How can I contact customer support?",
     answer:
-      "You can reach our customer support team via email at support@lamahclothingco.com, through our Contact page, or by phone at +1 (555) 123-4567. Our support hours are Monday through Friday, 9AM-6PM EST. We respond to all inquiries within 24 hours.",
+      "You can reach our customer support team via email at lamahclothing@gmail.com, through our Contact page, or by phone at +1 (650) 773-7186. Our support hours are Monday through Friday, 9AM-6PM EST. We respond to all inquiries within 24 hours.",
   },
 ];
 
@@ -313,7 +313,7 @@ export default function FAQPage() {
                           variant="body2"
                           sx={{ color: "#A0A0A0", fontFamily: "Poppins, sans-serif" }}
                         >
-                          Email: support@lamahclothingco.com
+                          Email: lamahclothing@gmail.com
                         </Typography>
                       </Stack>
                     </Stack>

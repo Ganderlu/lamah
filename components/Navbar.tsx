@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   AppBar,
   Toolbar,
@@ -30,6 +30,7 @@ import { useCartStore } from "@/lib/store/cart";
 import { useAuthStore } from "@/lib/store/auth";
 import { auth } from "@/firebase/client";
 import { onAuthStateChanged } from "firebase/auth";
+import SearchModal from "@/components/SearchModal";
 
 const navLinks = [
   { name: "Home", href: "/" },
@@ -46,8 +47,12 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const getTotalItems = useCartStore((state) => state.getTotalItems);
   const totalItems = getTotalItems();
+
+  const openSearch = useCallback(() => setSearchOpen(true), []);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
 
   useEffect(() => {
     setMounted(true);
@@ -60,8 +65,18 @@ export default function Navbar() {
       setIsLoggedIn(!!user);
     });
 
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
+      if (isShortcut) {
+        event.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
     return () => {
       window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("keydown", handleKeyDown);
       unsubscribe();
     };
   }, []);
@@ -133,6 +148,16 @@ export default function Navbar() {
 
       <Box sx={{ p: 3, borderTop: "1px solid rgba(57, 255, 20, 0.15)" }}>
         <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
+          <IconButton
+            onClick={() => {
+              handleDrawerToggle();
+              openSearch();
+            }}
+            sx={{ color: "#fff", "&:hover": { color: "#39FF14" } }}
+            aria-label="search"
+          >
+            <Search size={22} />
+          </IconButton>
           <Link href="/wishlist" passHref>
             <IconButton sx={{ color: "#fff", "&:hover": { color: "#39FF14" } }}>
               <Heart size={22} />
@@ -224,7 +249,11 @@ export default function Navbar() {
 
           {/* Right: Icons */}
           <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
-            <IconButton sx={{ color: "#fff" }} aria-label="search">
+            <IconButton
+              sx={{ color: "#fff", "&:hover": { color: "#39FF14" } }}
+              aria-label="search"
+              onClick={openSearch}
+            >
               <Search size={20} />
             </IconButton>
             <Link href="/wishlist" passHref>
@@ -290,6 +319,8 @@ export default function Navbar() {
           {drawer}
         </Drawer>
       </Box>
+
+      <SearchModal open={searchOpen} onClose={closeSearch} />
     </>
   );
 }
