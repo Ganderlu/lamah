@@ -346,7 +346,7 @@ export default function AdminRegisterPage() {
                     <Image
                       src="/images/lamahhlogo.png"
                       alt="LAMAH CLOTHING CO."
-                      fill
+                      fill=""
                       sizes="120px"
                       priority
                       style={{ objectFit: "contain" }}

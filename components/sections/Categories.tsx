@@ -89,7 +89,7 @@ export default function Categories() {
                       <Image
                         src={category.image}
                         alt={category.name}
-                        fill
+                        fill=""
                         style={{ objectFit: "cover", transition: "transform 0.5s ease" }}
                         className="group-hover:scale-110"
                       />

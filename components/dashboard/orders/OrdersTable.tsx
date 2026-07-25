@@ -92,7 +92,7 @@ export default function OrdersTable({ orders }: { orders: CustomerOrder[] }) {
                       <Image
                         src={firstItem?.image || "/images/lamahhlogo.png"}
                         alt={firstItem?.name || order.orderNumber}
-                        fill
+                        fill=""
                         sizes="60px"
                         style={{ objectFit: "cover" }}
                       />

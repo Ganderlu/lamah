@@ -64,7 +64,7 @@ export default function ProductCard({ id, name, price, image, isNew = false }: P
             <Image
               src={image}
               alt={name}
-              fill
+              fill=""
               style={{ objectFit: "cover", transition: "transform 0.5s ease" }}
             />
             {isNew && (

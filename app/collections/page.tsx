@@ -87,7 +87,7 @@ export default function CollectionsPage() {
                             <Image
                               src={collection.coverImage || "/images/lamahwhiteb.png"}
                               alt={collection.name}
-                              fill
+                              fill=""
                               style={{ objectFit: "cover" }}
                             />
                             <Box

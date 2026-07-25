@@ -736,7 +736,7 @@ export default function PressPage() {
                               <Image
                                 src={a.file}
                                 alt={a.title}
-                                fill
+                                fill=""
                                 sizes="180px"
                                 style={{ objectFit: "contain" }}
                               />

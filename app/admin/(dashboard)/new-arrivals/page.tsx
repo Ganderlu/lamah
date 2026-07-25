@@ -875,7 +875,7 @@ export default function AdminNewArrivalsPage() {
                                   <Image
                                     src={item.thumbnail}
                                     alt={item.productName}
-                                    fill
+                                    fill=""
                                     style={{ objectFit: "cover" }}
                                   />
                                 ) : (

@@ -143,7 +143,7 @@ export default function CategoryPage({ params }: { params: Promise<{ slug: strin
             <Image
               src={category.bannerImage || category.image || "/images/lamahwhiteb.png"}
               alt={category.name}
-              fill
+              fill=""
               style={{ objectFit: "cover" }}
             />
           ) : null}

@@ -47,7 +47,7 @@ export default function InstagramGallery() {
                 <Image
                   src={image}
                   alt={`Lamah Instagram ${index + 1}`}
-                  fill
+                  fill=""
                   style={{ objectFit: "cover" }}
                 />
                 <Box

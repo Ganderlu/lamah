@@ -42,7 +42,7 @@ export default function OrderCard({ order }: { order: CustomerOrder }) {
               <Image
                 src={firstItem?.image || "/images/lamahhlogo.png"}
                 alt={firstItem?.name || order.orderNumber}
-                fill
+                fill=""
                 sizes="72px"
                 style={{ objectFit: "cover" }}
               />

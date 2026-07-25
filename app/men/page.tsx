@@ -75,7 +75,7 @@ export default function MenPage() {
           <Image
             src="/images/lamahwhiteb.png"
             alt="Men's Collection"
-            fill
+            fill=""
             style={{
               objectFit: "cover",
               objectPosition: "center",

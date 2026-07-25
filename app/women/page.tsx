@@ -85,7 +85,7 @@ export default function WomenPage() {
           <Image
             src="/images/lamahwhitef.png"
             alt="Women's Collection"
-            fill
+            fill=""
             style={{
               objectFit: "cover",
               objectPosition: "center",

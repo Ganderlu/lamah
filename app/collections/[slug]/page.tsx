@@ -135,7 +135,7 @@ export default function CollectionDetailPage() {
                 <Image
                   src={collection.bannerImage}
                   alt={collection.name}
-                  fill
+                  fill=""
                   style={{ objectFit: "cover" }}
                 />
                 <Box
@@ -273,7 +273,7 @@ export default function CollectionDetailPage() {
                               <Image
                                 src={product.thumbnail || "/images/lamahwhiteb.png"}
                                 alt={product.name}
-                                fill
+                                fill=""
                                 style={{ objectFit: "cover" }}
                               />
                               {product.discountPrice && (
