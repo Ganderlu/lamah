@@ -1,6 +1,5 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
-import { auth as firebaseAuth, db as adminDb } from "@/firebase/admin";
 import { randomUUID } from "crypto";
 import type { OrderItem } from "@/types/order";
 
@@ -12,6 +11,13 @@ async function verifyBearerToken(request: Request): Promise<{
   email: string;
   name: string;
 }> {
+  // Lazy import — Firebase Admin is only initialized inside the handler.
+  // This keeps Next.js static/page-data collection from parsing the private
+  // key at build time (which can fail if the key is malformed / missing).
+  const { getAdminAuth, getAdminFirestore } = await import("@/firebase/admin");
+  const firebaseAuth = getAdminAuth();
+  const adminDb = getAdminFirestore();
+
   const authHeader = request.headers.get("authorization") ?? request.headers.get("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     throw new Error("UNAUTHORIZED");

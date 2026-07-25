@@ -9,7 +9,6 @@ import type {
   OrderStatus,
   TimelineEvent,
 } from "@/types/order";
-import { db as adminDb } from "@/firebase/admin";
 
 /**
  * Zero-decimal (smallest-unit-only) currencies recognised by Stripe.
@@ -222,6 +221,13 @@ async function handleCheckoutSessionCompleted(
   stripe: Stripe,
   session: Stripe.Checkout.Session
 ) {
+  // Lazy import + init Firebase Admin ONLY when actually persisting data.
+  // This prevents Next.js from invoking cert() with the private key during
+  // `next build` page-data collection (which can throw OSSL errors if the
+  // key is malformed or not present at build time).
+  const { getAdminFirestore } = await import("@/firebase/admin");
+  const adminDb = getAdminFirestore();
+
   logWebhook("info", "checkout.session.completed → starting", {
     sessionId: session.id,
   });
