@@ -102,11 +102,12 @@ export interface Settings {
   businessNumber: string;
   vatNumber: string;
   websiteUrl: string;
-  facebook: string;
+  facebook?: string;
   instagram: string;
-  tiktok: string;
+  tiktok?: string;
   youtube: string;
   twitter: string;
+  twitch: string;
   paymentSettings: PaymentGateways;
   shippingSettings: ShippingSettings;
   taxSettings: TaxSettings;

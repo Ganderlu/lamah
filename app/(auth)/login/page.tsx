@@ -59,6 +59,18 @@ const normalizeUsername = (value: string) =>
 
 const isEmailAddress = (value: string) => /\S+@\S+\.\S+/.test(value);
 
+const ADMIN_ROLES = new Set([
+  'super_admin',
+  'manager',
+  'director',
+  'inventory_manager',
+  'marketing_manager',
+  'customer_support',
+]);
+
+const hasAdminRole = (role: unknown): boolean =>
+  typeof role === 'string' && ADMIN_ROLES.has(role);
+
 const mapProfile = (uid: string, data: Record<string, unknown>): AuthUserProfile => ({
   uid,
   firstName: String(data.firstName ?? ''),
@@ -74,6 +86,39 @@ const mapProfile = (uid: string, data: Record<string, unknown>): AuthUserProfile
   rewardPoints: Number(data.rewardPoints ?? 0),
   membershipLevel: String(data.membershipLevel ?? 'Silver Member'),
 });
+
+const ADMIN_LOGIN_BLOCK_MESSAGE =
+  'Admin accounts are restricted from the customer sign-in. Please sign in at the Admin Portal (/admin/login) using your admin credentials, or register a separate customer account.';
+
+const ensureNotAdmin = async (uid: string) => {
+  const adminRef = doc(db, 'admins', uid);
+  const userRef = doc(db, 'users', uid);
+  const [adminSnap, userSnap] = await Promise.all([
+    getDoc(adminRef),
+    getDoc(userRef),
+  ]);
+
+  const hasAdminRecord = adminSnap.exists();
+  const adminRoleFromUser = userSnap.exists()
+    ? hasAdminRole((userSnap.data() as { role?: unknown }).role)
+    : false;
+  const adminRoleFromAdmin = adminSnap.exists()
+    ? hasAdminRole((adminSnap.data() as { role?: unknown }).role)
+    : false;
+
+  if (hasAdminRecord || adminRoleFromUser || adminRoleFromAdmin) {
+    try {
+      await auth.signOut();
+    } catch (_) {
+      /* swallow sign-out errors during the block flow */
+    }
+    const error = new Error(ADMIN_LOGIN_BLOCK_MESSAGE);
+    error.name = 'AdminAccountBlockedError';
+    throw error;
+  }
+
+  return { userSnap };
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -179,10 +224,19 @@ export default function LoginPage() {
         data.password
       );
 
-      await syncUserProfile(userCredential.user.uid, {
+      const { userSnap } = await ensureNotAdmin(userCredential.user.uid);
+
+      const fallback: Partial<AuthUserProfile> = {
         email: userCredential.user.email ?? email,
         photoURL: userCredential.user.photoURL ?? '',
-      });
+      };
+
+      if (userSnap.exists()) {
+        const profile = mapProfile(userCredential.user.uid, userSnap.data());
+        setProfile(profile);
+      } else {
+        await syncUserProfile(userCredential.user.uid, fallback);
+      }
 
       setSnackbar({
         open: true,
@@ -209,13 +263,21 @@ export default function LoginPage() {
       const user = result.user;
       const displayNameParts = user.displayName?.trim().split(/\s+/) ?? [];
 
-      await syncUserProfile(user.uid, {
+      const { userSnap } = await ensureNotAdmin(user.uid);
+
+      const fallback: Partial<AuthUserProfile> = {
         firstName: displayNameParts[0] ?? '',
         lastName: displayNameParts.slice(1).join(' '),
         username: normalizeUsername(user.email?.split('@')[0] ?? user.uid),
         email: user.email ?? '',
         photoURL: user.photoURL ?? '',
-      });
+      };
+
+      if (userSnap.exists()) {
+        setProfile(mapProfile(user.uid, userSnap.data()));
+      } else {
+        await syncUserProfile(user.uid, fallback);
+      }
 
       setSnackbar({
         open: true,

@@ -56,6 +56,7 @@ import { CldUploadWidget } from "next-cloudinary";
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
@@ -84,13 +85,20 @@ export default function AdminSettingsPage() {
   };
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   // Handle copy to clipboard
   const handleCopy = async (text: string, keyId: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopiedKeys([...copiedKeys, keyId]);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (error) {
+      console.error("Failed to copy text to clipboard:", error);
+      return;
+    }
+    setCopiedKeys((prev) =>
+      prev.includes(keyId) ? prev : [...prev, keyId]
+    );
     setTimeout(() => {
       setCopiedKeys((prev) => prev.filter((k) => k !== keyId));
     }, 2000);
@@ -99,7 +107,20 @@ export default function AdminSettingsPage() {
   // Handle save changes
   const handleSave = async () => {
     try {
-      await updateSettings(settings.id, settings);
+      setSaving(true);
+
+      // Always write the FULL merged object so that every input from both
+      // General and Store Information is persisted regardless of which tab
+      // was active when Save Changes was clicked.
+      const next = await updateSettings(settings.id, settings);
+
+      // If this save created the Firestore doc for the first time, sync the
+      // freshly-generated stable id into state so subsequent saves update
+      // the same document instead of creating duplicates.
+      if (next && next.id && settings.id !== next.id) {
+        setSettings((prev) => ({ ...prev, id: next.id }));
+      }
+
       setSnackbar({
         open: true,
         message: "Settings saved successfully!",
@@ -112,6 +133,8 @@ export default function AdminSettingsPage() {
         message: "Failed to save settings",
         severity: "error",
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -228,20 +251,26 @@ export default function AdminSettingsPage() {
             </Button>
             <Button
               variant="contained"
-              startIcon={<Save size={16} />}
+              startIcon={saving ? undefined : <Save size={16} />}
               onClick={handleSave}
+              disabled={saving || loading}
               sx={{
                 bgcolor: "#39FF14",
                 color: "#000",
                 fontFamily: "Poppins, sans-serif",
                 fontWeight: 600,
                 textTransform: "none",
+                minWidth: 160,
                 "&:hover": {
                   bgcolor: "#2dd610",
                 },
+                "&.Mui-disabled": {
+                  bgcolor: "rgba(57,255,20,0.55)",
+                  color: "rgba(0,0,0,0.7)",
+                },
               }}
             >
-              Save Changes
+              {saving ? "Saving..." : "Save Changes"}
             </Button>
           </Box>
         </Box>
@@ -939,27 +968,16 @@ export default function AdminSettingsPage() {
                         >
                           Social Media Links
                         </Typography>
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          fullWidth
-                          label="Facebook"
-                          value={settings.facebook}
-                          onChange={(e) => handleChange("facebook", e.target.value)}
-                          variant="outlined"
+                        <Typography
                           sx={{
-                            "& .MuiOutlinedInput-root": {
-                              color: "#fff",
-                              bgcolor: "rgba(5,5,5,0.5)",
-                              "& fieldset": {
-                                borderColor: "rgba(57,255,20,0.2)",
-                              },
-                            },
-                            "& .MuiInputLabel-root": {
-                              color: "#A0A0A0",
-                            },
+                            color: "#A0A0A0",
+                            fontFamily: "Poppins, sans-serif",
+                            fontSize: "0.875rem",
+                            mb: 3,
                           }}
-                        />
+                        >
+                          These links are shown in the store footer. Enter the full URL for each social profile.
+                        </Typography>
                       </Grid>
                       <Grid item xs={12} md={6}>
                         <TextField
@@ -968,27 +986,7 @@ export default function AdminSettingsPage() {
                           value={settings.instagram}
                           onChange={(e) => handleChange("instagram", e.target.value)}
                           variant="outlined"
-                          sx={{
-                            "& .MuiOutlinedInput-root": {
-                              color: "#fff",
-                              bgcolor: "rgba(5,5,5,0.5)",
-                              "& fieldset": {
-                                borderColor: "rgba(57,255,20,0.2)",
-                              },
-                            },
-                            "& .MuiInputLabel-root": {
-                              color: "#A0A0A0",
-                            },
-                          }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          fullWidth
-                          label="TikTok"
-                          value={settings.tiktok}
-                          onChange={(e) => handleChange("tiktok", e.target.value)}
-                          variant="outlined"
+                          placeholder="https://instagram.com/..."
                           sx={{
                             "& .MuiOutlinedInput-root": {
                               color: "#fff",
@@ -1010,6 +1008,7 @@ export default function AdminSettingsPage() {
                           value={settings.youtube}
                           onChange={(e) => handleChange("youtube", e.target.value)}
                           variant="outlined"
+                          placeholder="https://youtube.com/..."
                           sx={{
                             "& .MuiOutlinedInput-root": {
                               color: "#fff",
@@ -1024,13 +1023,80 @@ export default function AdminSettingsPage() {
                           }}
                         />
                       </Grid>
-                      <Grid item xs={12}>
+                      <Grid item xs={12} md={6}>
                         <TextField
                           fullWidth
-                          label="Twitter"
+                          label="X (Twitter)"
                           value={settings.twitter}
                           onChange={(e) => handleChange("twitter", e.target.value)}
                           variant="outlined"
+                          placeholder="https://x.com/..."
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              color: "#fff",
+                              bgcolor: "rgba(5,5,5,0.5)",
+                              "& fieldset": {
+                                borderColor: "rgba(57,255,20,0.2)",
+                              },
+                            },
+                            "& .MuiInputLabel-root": {
+                              color: "#A0A0A0",
+                            },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Twitch"
+                          value={settings.twitch}
+                          onChange={(e) => handleChange("twitch", e.target.value)}
+                          variant="outlined"
+                          placeholder="https://twitch.tv/..."
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              color: "#fff",
+                              bgcolor: "rgba(5,5,5,0.5)",
+                              "& fieldset": {
+                                borderColor: "rgba(57,255,20,0.2)",
+                              },
+                            },
+                            "& .MuiInputLabel-root": {
+                              color: "#A0A0A0",
+                            },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="TikTok"
+                          value={settings.tiktok ?? ""}
+                          onChange={(e) => handleChange("tiktok", e.target.value)}
+                          variant="outlined"
+                          placeholder="https://tiktok.com/..."
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              color: "#fff",
+                              bgcolor: "rgba(5,5,5,0.5)",
+                              "& fieldset": {
+                                borderColor: "rgba(57,255,20,0.2)",
+                              },
+                            },
+                            "& .MuiInputLabel-root": {
+                              color: "#A0A0A0",
+                            },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Facebook"
+                          value={settings.facebook ?? ""}
+                          onChange={(e) => handleChange("facebook", e.target.value)}
+                          variant="outlined"
+                          placeholder="https://facebook.com/..."
                           sx={{
                             "& .MuiOutlinedInput-root": {
                               color: "#fff",

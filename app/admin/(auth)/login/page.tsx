@@ -25,6 +25,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/firebase/client";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/firebase/client";
 import {
   Eye,
   EyeOff,
@@ -51,6 +53,69 @@ const directorCodeSchema = z.object({
 
 type LoginInputs = z.infer<typeof loginSchema>;
 type DirectorCodeInputs = z.infer<typeof directorCodeSchema>;
+
+const ADMIN_ROLES = new Set([
+  "super_admin",
+  "manager",
+  "director",
+  "inventory_manager",
+  "marketing_manager",
+  "customer_support",
+]);
+
+interface AdminRecord {
+  role?: unknown;
+  status?: unknown;
+}
+
+const CUSTOMER_ADMIN_BLOCK_MESSAGE =
+  "Customer accounts are restricted from the Admin Portal. Please sign in with an admin account that was registered through /admin/register, or use the Manager / Director code to create one.";
+
+const ensureAdminAccount = async (uid: string) => {
+  const adminRef = doc(db, "admins", uid);
+  const userRef = doc(db, "users", uid);
+  const [adminSnap, userSnap] = await Promise.all([
+    getDoc(adminRef),
+    getDoc(userRef),
+  ]);
+
+  const hasAdminRecord = adminSnap.exists();
+
+  const adminRole =
+    (adminSnap.exists()
+      ? (adminSnap.data() as AdminRecord).role
+      : undefined) ??
+    (userSnap.exists() ? (userSnap.data() as AdminRecord).role : undefined);
+
+  const adminStatus =
+    (adminSnap.exists()
+      ? (adminSnap.data() as AdminRecord).status
+      : undefined) ??
+    (userSnap.exists() ? (userSnap.data() as AdminRecord).status : undefined);
+
+  const roleOk =
+    typeof adminRole === "string" && ADMIN_ROLES.has(adminRole);
+  const statusOk =
+    adminStatus === undefined ||
+    adminStatus === "active" ||
+    (typeof adminStatus === "string" &&
+      adminStatus.toLowerCase() === "active");
+
+  if (!hasAdminRecord || !roleOk || !statusOk) {
+    try {
+      await auth.signOut();
+    } catch (_) {
+      /* swallow sign-out errors during the block flow */
+    }
+    const error = new Error(
+      hasAdminRecord && !statusOk
+        ? "This admin account is currently inactive. Please contact a Super Admin for access."
+        : CUSTOMER_ADMIN_BLOCK_MESSAGE
+    );
+    error.name = "NonAdminAccountBlockedError";
+    throw error;
+  }
+};
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -93,7 +158,12 @@ export default function AdminLoginPage() {
   const onLoginSubmit = async (data: LoginInputs) => {
     setLoginLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, data.email, data.password);
+      const userCred = await signInWithEmailAndPassword(
+        auth,
+        data.email,
+        data.password
+      );
+      await ensureAdminAccount(userCred.user.uid);
       setSnackbar({
         open: true,
         message: "Signed in successfully! Redirecting...",
@@ -105,7 +175,11 @@ export default function AdminLoginPage() {
     } catch (err: any) {
       console.error("Login error:", err);
       const msg =
-        err?.code === "auth/invalid-credential" || err?.code === "auth/wrong-password" || err?.code === "auth/user-not-found"
+        err?.name === "NonAdminAccountBlockedError"
+          ? err?.message
+          : err?.code === "auth/invalid-credential" ||
+            err?.code === "auth/wrong-password" ||
+            err?.code === "auth/user-not-found"
           ? "Invalid email or password. Please try again."
           : err?.message || "Sign-in failed. Please try again.";
       setSnackbar({ open: true, message: msg, success: false });
