@@ -2,60 +2,265 @@ import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import type { OrderItem } from "@/types/order";
+import { decodeAndVerifyFirebaseIdToken } from "@/lib/firebaseJwt";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+const FIREBASE_PROJECT_ID =
+  process.env.FIREBASE_PROJECT_ID ||
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+  "lamahclothing";
+
+const AUTH_ERROR_CODES = new Set([
+  "auth/argument-error",
+  "auth/id-token-expired",
+  "auth/id-token-revoked",
+  "auth/invalid-argument",
+  "auth/invalid-id-token",
+  "auth/invalid-user-token",
+  "auth/user-token-expired",
+  "auth/network-request-failed",
+]);
+
+function isAuthError(err: unknown): boolean {
+  if (err instanceof Error && "code" in err && typeof (err as any).code === "string") {
+    return AUTH_ERROR_CODES.has((err as any).code);
+  }
+  return false;
+}
+
+function isJwtAuthRejection(message: string): boolean {
+  return (
+    /expired/i.test(message) ||
+    /revoked/i.test(message) ||
+    /invalid id token/i.test(message) ||
+    /wrong audience/i.test(message) ||
+    /wrong issuer/i.test(message) ||
+    /signature verification failed/i.test(message) ||
+    /key.*not found/i.test(message) ||
+    /missing.*sub/i.test(message) ||
+    /user_id.*does not match/i.test(message)
+  );
+}
+
+function getErrMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err ?? "Unknown error");
+}
+
+async function fetchUserProfileFromFirestore(
+  uid: string,
+  adminDb: any
+): Promise<{ email: string; displayName: string } | null> {
+  try {
+    const snap = await adminDb.collection("users").doc(uid).get();
+    if (snap.exists) {
+      const data = (snap.data() ?? {}) as Record<string, unknown>;
+      let email: string = "";
+      let displayName: string = "";
+      if (data.email && typeof data.email === "string") email = data.email;
+      const first = String(data.firstName ?? "");
+      const last = String(data.lastName ?? "");
+      if (first || last) displayName = [first, last].filter(Boolean).join(" ").trim();
+      else if (data.username && typeof data.username === "string") displayName = data.username;
+      if (!email && data.email) email = String(data.email);
+      return { email, displayName };
+    }
+  } catch (dbErr) {
+    console.warn("[checkout] could not fetch user profile doc via Admin SDK, using token defaults", dbErr);
+  }
+  return null;
+}
+
+async function fetchUserProfileViaRest(uid: string): Promise<{
+  email: string;
+  displayName: string;
+} | null> {
+  try {
+    const { getFirestore, doc, getDoc } = await import("firebase/firestore/lite");
+    const { initializeApp, getApps, getApp } = await import("firebase/app");
+    const clientConfig = {
+      apiKey: "AIzaSyBRKQjpatOqRthffdSeXhOyUZ3C04abLXs",
+      authDomain: "lamahclothing.firebaseapp.com",
+      projectId: FIREBASE_PROJECT_ID,
+      storageBucket: "lamahclothing.firebasestorage.app",
+      messagingSenderId: "1021007445890",
+      appId: "1:1021007445890:web:803a8996ef6a437182d99b",
+    };
+    const app = getApps().length > 0 ? getApp() : initializeApp(clientConfig);
+    const dbLite = getFirestore(app);
+    const snap = await getDoc(doc(dbLite, "users", uid));
+    if (snap.exists()) {
+      const data = (snap.data() ?? {}) as Record<string, unknown>;
+      let email: string = "";
+      let displayName: string = "";
+      if (data.email && typeof data.email === "string") email = data.email;
+      const first = String(data.firstName ?? "");
+      const last = String(data.lastName ?? "");
+      if (first || last) displayName = [first, last].filter(Boolean).join(" ").trim();
+      else if (data.username && typeof data.username === "string") displayName = data.username;
+      if (!email && data.email) email = String(data.email);
+      return { email, displayName };
+    }
+  } catch (err) {
+    console.warn("[checkout] REST Firestore fallback profile lookup failed", err);
+  }
+  return null;
+}
+
+async function verifyWithAdminSdk(token: string): Promise<{
+  uid: string;
+  email: string;
+  name: string;
+} | null> {
+  let firebaseAuth: any | null = null;
+  let adminDb: any | null = null;
+  try {
+    const { getAdminAuth, getAdminFirestore } = await import("@/firebase/admin");
+    firebaseAuth = getAdminAuth();
+    adminDb = getAdminFirestore();
+  } catch (err) {
+    console.warn(
+      "[checkout] Firebase Admin init failed; skipping Admin SDK path.",
+      getErrMessage(err)
+    );
+    return null;
+  }
+
+  let decoded: any | null = null;
+  try {
+    try {
+      decoded = await firebaseAuth.verifyIdToken(token, false);
+    } catch (verifyErr) {
+      if (isAuthError(verifyErr)) {
+        const code = (verifyErr as any).code;
+        console.warn("[checkout] Admin SDK rejected token (no revoke check); code=", code);
+        throw new Error("UNAUTHORIZED");
+      }
+      console.warn(
+        "[checkout] Admin verifyIdToken (no revoke) non-auth error — will use JWT fallback.",
+        getErrMessage(verifyErr)
+      );
+      return null;
+    }
+
+    try {
+      await firebaseAuth.verifyIdToken(token, true);
+    } catch (revokeErr) {
+      if (isAuthError(revokeErr)) {
+        const code = (revokeErr as any).code;
+        if (code === "auth/id-token-revoked") {
+          console.warn("[checkout] token revoked by Admin SDK");
+          throw new Error("UNAUTHORIZED");
+        }
+        console.warn(
+          "[checkout] Admin revoke check returned auth code",
+          code,
+          "; accepting the already-verified token."
+        );
+      } else {
+        console.warn(
+          "[checkout] Admin revoke check non-auth error; accepting already-verified token.",
+          getErrMessage(revokeErr)
+        );
+      }
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message === "UNAUTHORIZED") {
+      throw err;
+    }
+    console.warn(
+      "[checkout] Admin SDK pipeline non-auth failure; will use JWT fallback.",
+      getErrMessage(err)
+    );
+    return null;
+  }
+
+  const uid: string | undefined = decoded?.uid;
+  if (!uid) return null;
+
+  let email: string = decoded.email ?? "";
+  let displayName: string = decoded.name ?? "";
+
+  const profile = await fetchUserProfileFromFirestore(uid, adminDb);
+  if (profile) {
+    if (profile.email) email = profile.email;
+    if (profile.displayName) displayName = profile.displayName;
+  }
+
+  if (!email) email = `${uid}@customer.lamah`;
+  if (!displayName) displayName = email.split("@")[0] ?? "LAMAH Customer";
+
+  return { uid, email, name: displayName };
+}
+
+async function verifyWithJwtFallback(token: string): Promise<{
+  uid: string;
+  email: string;
+  name: string;
+}> {
+  const { payload } = await decodeAndVerifyFirebaseIdToken(token, FIREBASE_PROJECT_ID).catch(
+    (err) => {
+      const msg = getErrMessage(err);
+      if (isJwtAuthRejection(msg)) {
+        console.warn("[checkout] JWT fallback rejected token:", msg);
+        throw new Error("UNAUTHORIZED");
+      }
+      console.error("[checkout] JWT fallback verification non-auth error:", err);
+      throw new Error(
+        `AUTH_SERVICE_ERROR: Token verification failed internally (${msg}). Please try again.`
+      );
+    }
+  );
+
+  const uid: string | undefined = payload.sub;
+  if (!uid) throw new Error("UNAUTHORIZED");
+
+  let email: string = payload.email ?? "";
+  let displayName: string = payload.name ?? "";
+
+  const clientProfile = await fetchUserProfileViaRest(uid);
+  if (clientProfile) {
+    if (clientProfile.email) email = clientProfile.email;
+    if (clientProfile.displayName) displayName = clientProfile.displayName;
+  }
+
+  if (!email) email = `${uid}@customer.lamah`;
+  if (!displayName) displayName = email.split("@")[0] ?? "LAMAH Customer";
+
+  return { uid, email, name: displayName };
+}
 
 async function verifyBearerToken(request: Request): Promise<{
   uid: string;
   email: string;
   name: string;
 }> {
-  // Lazy import — Firebase Admin is only initialized inside the handler.
-  // This keeps Next.js static/page-data collection from parsing the private
-  // key at build time (which can fail if the key is malformed / missing).
-  const { getAdminAuth, getAdminFirestore } = await import("@/firebase/admin");
-  const firebaseAuth = getAdminAuth();
-  const adminDb = getAdminFirestore();
-
   const authHeader = request.headers.get("authorization") ?? request.headers.get("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     throw new Error("UNAUTHORIZED");
   }
   const token = authHeader.slice("Bearer ".length);
+
+  // Path A (preferred: Admin SDK — includes revocation check).
+  // If it fails for any reason other than a definitive token rejection,
+  // returns null and we transparently fall back to Path B.
   try {
-    const decoded = await firebaseAuth.verifyIdToken(token, true);
-    const uid = decoded.uid;
-    if (!uid) throw new Error("UNAUTHORIZED");
-
-    // Prefer the users/uid Firestore record for the most accurate contact
-    // details; fall back to the decoded token claims.
-    let email: string = decoded.email ?? "";
-    let displayName: string = decoded.name ?? "";
-
-    try {
-      const snap = await adminDb.collection("users").doc(uid).get();
-      if (snap.exists) {
-        const data = (snap.data() ?? {}) as Record<string, unknown>;
-        if (data.email && typeof data.email === "string") email = data.email;
-        const first = String(data.firstName ?? "");
-        const last = String(data.lastName ?? "");
-        if (first || last) displayName = [first, last].filter(Boolean).join(" ").trim();
-        else if (data.username && typeof data.username === "string") displayName = data.username;
-        if (!email && data.email) email = String(data.email);
-      }
-    } catch {
-      /* fall through to decoded-token values */
-    }
-
-    if (!email) email = `${uid}@customer.lamah`;
-    if (!displayName) displayName = email.split("@")[0] ?? "LAMAH Customer";
-
-    return { uid, email, name: displayName };
+    const adminResult = await verifyWithAdminSdk(token);
+    if (adminResult) return adminResult;
   } catch (err) {
-    console.error("[checkout] token verification failed", err);
-    throw new Error("UNAUTHORIZED");
+    if (err instanceof Error && err.message === "UNAUTHORIZED") {
+      throw err; // definitive real-auth rejection → 401
+    }
+    console.warn(
+      "[checkout] Admin SDK path threw non-UNAUTHORIZED; falling through to JWT verifier.",
+      getErrMessage(err)
+    );
   }
+
+  // Path B — always works, even without Firebase Admin env vars.
+  return verifyWithJwtFallback(token);
 }
 
 function toAbsoluteImageUrl(baseUrl: string, maybeRelative: string): string | undefined {
@@ -98,11 +303,15 @@ export async function POST(request: Request) {
     let customer: { uid: string; email: string; name: string };
     try {
       customer = await verifyBearerToken(request);
-    } catch {
-      return NextResponse.json(
-        { error: "Please sign in before completing your purchase." },
-        { status: 401 }
-      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      const isUnauth = msg === "UNAUTHORIZED";
+      const status = isUnauth ? 401 : 503;
+      const bodyMsg = isUnauth
+        ? "Please sign in before completing your purchase."
+        : msg ||
+          "We couldn't verify your account right now. Please refresh the page and try again.";
+      return NextResponse.json({ error: bodyMsg }, { status });
     }
 
     // -----------------------------------------------------------
@@ -157,10 +366,36 @@ export async function POST(request: Request) {
       };
     });
 
+    // Stripe metadata values have a 500-char limit each. We therefore do:
+    //   - Per-item fields go on `price_data.product_data.metadata` as small scalars.
+    //   - Order-level metadata gets compact summary strings (comma-separated ids,
+    //     qtys, prices, sizes) so nothing approaches 500 chars.
+    const itemIds = normalizedItems.map((i) => i.productId || i.id).join(",");
+    const itemQtys = normalizedItems.map((i) => String(i.quantity)).join(",");
+    const itemPrices = normalizedItems.map((i) => i.price.toFixed(2)).join(",");
+    const itemSizes = normalizedItems
+      .map((i) => {
+        const parts: string[] = [];
+        if (i.size) parts.push(`S:${i.size.replace(/,/g, "_")}`);
+        if (i.color) parts.push(`C:${i.color.replace(/,/g, "_")}`);
+        return parts.join("|") || "-";
+      })
+      .join(",");
+    const itemNames = normalizedItems
+      .map((i) => i.name.replace(/[,\n]/g, " ").slice(0, 80))
+      .join("|");
+
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] =
       normalizedItems.map((item) => {
         const image = toAbsoluteImageUrl(baseUrl, item.image);
         const unitAmount = Math.max(0, Math.round(item.price * 100));
+        const productMetadata: Stripe.MetadataParam = {
+          item_id: item.id,
+          product_id: item.productId || item.id,
+          ...(item.size ? { size: item.size } : {}),
+          ...(item.color ? { color: item.color } : {}),
+          unit_price: item.price.toFixed(2),
+        };
         return {
           price_data: {
             currency: "usd",
@@ -177,6 +412,7 @@ export async function POST(request: Request) {
                       .join(" • "),
                   }
                 : {}),
+              metadata: productMetadata,
             },
             unit_amount: unitAmount,
           },
@@ -188,19 +424,27 @@ export async function POST(request: Request) {
     // 4. Initialize Stripe + create the Checkout Session.
     // -----------------------------------------------------------
     const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2026-06-24.dahlia",
       maxNetworkRetries: 2,
       timeout: 20_000,
     });
 
+    // Per Stripe: each metadata value max 500 chars.
+    // We compact summaries so even a large cart (20+ items) fits safely.
+    const truncate = (s: string, n: number) =>
+      s.length > n ? s.slice(0, n - 3) + "..." : s;
     const metadata: Stripe.MetadataParam = {
       orderNumber,
       customerId: customer.uid,
       customerEmail: customerEmailFromBody,
-      customerName: customerNameFromBody,
-      customerPhone: customerPhoneFromBody,
+      customerName: truncate(customerNameFromBody, 200),
+      customerPhone: truncate(customerPhoneFromBody, 60),
       source: "lamah-web-checkout",
-      items: JSON.stringify(normalizedItems),
+      itemCount: String(normalizedItems.length),
+      itemIds: truncate(itemIds, 500),
+      itemQtys: truncate(itemQtys, 500),
+      itemPrices: truncate(itemPrices, 500),
+      itemSizes: truncate(itemSizes, 500),
+      itemNames: truncate(itemNames, 500),
     };
 
     const session = await stripe.checkout.sessions.create(
@@ -265,12 +509,32 @@ export async function POST(request: Request) {
     });
   } catch (error: unknown) {
     console.error("[checkout] Error creating checkout session:", error);
-    const message =
-      error instanceof Error ? error.message : "Internal Server Error";
+    let message = "Internal Server Error";
+    if (error instanceof Error) {
+      message = error.message;
+      if (
+        error instanceof Object &&
+        "type" in error &&
+        typeof (error as any).type === "string"
+      ) {
+        const stripeType = (error as any).type;
+        console.error("[checkout] Stripe error type:", stripeType, "code:", (error as any).code);
+        if (stripeType.startsWith("Stripe")) {
+          message =
+            (error as any).message ||
+            "We couldn't start the checkout payment provider. Please try again in a moment.";
+        }
+      }
+    }
     const status = message === "UNAUTHORIZED" ? 401 : 500;
-    return NextResponse.json(
-      { error: status === 401 ? "Please sign in before completing your purchase." : message },
-      { status }
-    );
+    const userMessage =
+      status === 401
+        ? "Please sign in before completing your purchase."
+        : message.startsWith("AUTH_SERVICE")
+        ? message
+        : message.startsWith("Failed to initialize Firebase Admin")
+        ? `AUTH_SERVICE_DOWN: Server auth configuration error. Please contact support.`
+        : message;
+    return NextResponse.json({ error: userMessage }, { status });
   }
 }

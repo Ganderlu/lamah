@@ -73,10 +73,9 @@ let cachedStripe: Stripe | null = null;
 function getStripe(secret: string): Stripe {
   if (!cachedStripe) {
     cachedStripe = new Stripe(secret, {
-      // Must match the apiVersion used in app/api/checkout/route.ts and the
-      // TypeScript types shipped by stripe@^22.
-      apiVersion: "2026-06-24.dahlia",
-      // Vercel runs in us-east-1 (and other POPs); Stripe SDK auto-retries.
+      // Use the Stripe SDK's built-in default API version (matches the TS
+      // types shipped by stripe@^22). Do NOT hardcode a custom/unknown
+      // version string — it breaks API requests.
       maxNetworkRetries: 2,
       timeout: 20_000,
       typescript: true,
@@ -147,13 +146,61 @@ function toAddress(stripeAddress?: Stripe.Address | null, shippingName?: string 
  *     billingAddress: JSON.stringify(address),
  *   }
  */
+function splitCsv(s: string | null | undefined): string[] {
+  if (!s) return [];
+  return s.split(",").map((p) => p.trim()).filter(Boolean);
+}
+
+function buildItemsFromCompactMeta(metadata: Stripe.Metadata | null | undefined): OrderItem[] | null {
+  if (!metadata) return null;
+  const ids = splitCsv(metadata.itemIds);
+  const qtys = splitCsv(metadata.itemQtys);
+  const prices = splitCsv(metadata.itemPrices);
+  const sizes = splitCsv(metadata.itemSizes);
+  const names = (metadata.itemNames || "").split("|").map((s) => s.trim());
+  if (ids.length === 0) return null;
+  const n = Math.max(ids.length, qtys.length, prices.length, sizes.length, names.length);
+  const items: OrderItem[] = [];
+  for (let i = 0; i < n; i++) {
+    const id = ids[i] ?? `item-${i + 1}`;
+    const qtyRaw = qtys[i] ?? "1";
+    const priceRaw = prices[i] ?? "0";
+    const sizeRaw = sizes[i] ?? "-";
+    const name = (names[i] ?? `Product ${i + 1}`).trim() || `Product ${i + 1}`;
+    const quantity = Math.max(1, Number.parseInt(qtyRaw, 10) || 1);
+    const price = Number(Number.parseFloat(priceRaw || "0").toFixed(2));
+    let size: string | undefined;
+    let color: string | undefined;
+    if (sizeRaw && sizeRaw !== "-") {
+      const parts = sizeRaw.split("|");
+      parts.forEach((part) => {
+        if (part.startsWith("S:")) size = part.slice(2) || undefined;
+        if (part.startsWith("C:")) color = part.slice(2) || undefined;
+      });
+    }
+    items.push({
+      id,
+      productId: id,
+      name,
+      image: "",
+      quantity,
+      price: Number.isFinite(price) ? price : 0,
+      ...(size ? { size } : {}),
+      ...(color ? { color } : {}),
+    });
+  }
+  return items.length > 0 ? items : null;
+}
+
 async function getCheckoutLineItems(
   stripe: Stripe,
   session: Stripe.Checkout.Session
 ): Promise<{ items: OrderItem[]; orderNumber: string }> {
-  // 1. Try compact metadata first (no extra round-trip to Stripe).
-  const metaItemsRaw = session.metadata?.items;
   const metaOrderNumber = session.metadata?.orderNumber;
+
+  // 1. Legacy JSON fallback (`metadata.items`): old checkout sessions may
+  //    still have this. Use it if present and valid.
+  const metaItemsRaw = session.metadata?.items;
   if (metaItemsRaw && metaOrderNumber) {
     try {
       const parsed = JSON.parse(metaItemsRaw) as OrderItem[];
@@ -165,7 +212,17 @@ async function getCheckoutLineItems(
     }
   }
 
-  // 2. Fallback: fetch + expand from Stripe API.
+  // 2. Compact summary metadata (new checkout API emits itemIds/itemQtys/
+  //    itemPrices/itemSizes/itemNames — each < 500 chars). No API call.
+  const compactItems = buildItemsFromCompactMeta(session.metadata);
+  if (compactItems && compactItems.length > 0) {
+    return {
+      orderNumber: metaOrderNumber ?? `LAMAH-${session.id.slice(-8).toUpperCase()}`,
+      items: compactItems,
+    };
+  }
+
+  // 3. Final fallback: fetch + expand line_items + price.product from Stripe.
   logWebhook("info", "Re-fetching checkout session with expand=line_items", {
     sessionId: session.id,
   });
@@ -184,23 +241,39 @@ async function getCheckoutLineItems(
         li.description ??
         (isLiveProduct ? productObj.name : null) ??
         `Product ${idx + 1}`;
-      const unitAmount = li.amount_total != null && li.quantity ? li.amount_total / li.quantity / 100 : 0;
+      const divisor = smallestUnitDivisor(li.currency ?? "usd");
+      const unitAmount =
+        li.amount_total != null && li.quantity && li.quantity > 0
+          ? (li.amount_total / li.quantity) / divisor
+          : 0;
       const image =
         isLiveProduct && Array.isArray(productObj.images) && productObj.images[0]
           ? productObj.images[0]
           : "";
+      const priceProductMetadata =
+        isLiveProduct && productObj.metadata && typeof productObj.metadata === "object"
+          ? (productObj.metadata as Record<string, string>)
+          : null;
+      const size = priceProductMetadata?.size || undefined;
+      const color = priceProductMetadata?.color || undefined;
+      const metadataItemId = priceProductMetadata?.item_id;
+      const metadataProductId = priceProductMetadata?.product_id;
       return {
-        id: li.id,
+        id: metadataItemId || li.id,
         productId:
+          metadataProductId ||
           (typeof price?.product === "string"
             ? price.product
             : isLiveProduct
             ? productObj.id
-            : null) ?? li.id,
+            : null) ||
+          li.id,
         name,
         image,
         quantity: li.quantity ?? 1,
         price: Number(unitAmount.toFixed(2)),
+        ...(size ? { size } : {}),
+        ...(color ? { color } : {}),
       };
     }) ?? [];
 

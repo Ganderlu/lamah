@@ -24,7 +24,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/firebase/client";
+import { adminAuth } from "@/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/firebase/client";
 import {
@@ -103,7 +103,7 @@ const ensureAdminAccount = async (uid: string) => {
 
   if (!hasAdminRecord || !roleOk || !statusOk) {
     try {
-      await auth.signOut();
+      await adminAuth.signOut();
     } catch (_) {
       /* swallow sign-out errors during the block flow */
     }
@@ -159,7 +159,7 @@ export default function AdminLoginPage() {
     setLoginLoading(true);
     try {
       const userCred = await signInWithEmailAndPassword(
-        auth,
+        adminAuth,
         data.email,
         data.password
       );

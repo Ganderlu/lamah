@@ -25,6 +25,11 @@ const toISOString = (value: any): string => {
   return new Date().toISOString();
 };
 
+const capitalize = (s: string): string => {
+  if (!s) return "Active";
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+};
+
 // Fetch all customers
 export const fetchCustomers = async (
   statusFilter?: "All" | "Active" | "Inactive" | "Blocked",
@@ -44,15 +49,15 @@ export const fetchCustomers = async (
         lastName: lastName,
         username: data.username || `${firstName.toLowerCase()}${lastName.toLowerCase()}`,
         email: data.email || "",
-        phone: data.phone || "",
-        avatar: data.avatar || "",
+        phone: data.phone || data.phoneNumber || data.contact || "",
+        avatar: data.photoURL || data.avatar || data.profilePicture || data.profileImage || "",
         gender: data.gender || "",
-        membership: data.membership || "Regular Customer",
-        status: data.status || "Active",
+        membership: data.membership || data.membershipLevel || "Regular Customer",
+        status: data.status ? capitalize(data.status) : "Active",
         rewardPoints: data.rewardPoints || 0,
-        wishlistCount: data.wishlistCount || 0,
-        ordersCount: data.ordersCount || 0,
-        totalSpent: data.totalSpent || 0,
+        wishlistCount: data.wishlistCount || (Array.isArray(data.wishlist) ? data.wishlist.length : 0),
+        ordersCount: data.ordersCount || data.totalOrders || 0,
+        totalSpent: data.totalSpent || data.totalAmountSpent || data.lifetimeSpend || 0,
         defaultAddress: data.defaultAddress || "",
         createdAt: toISOString(data.createdAt),
         updatedAt: data.updatedAt ? toISOString(data.updatedAt) : undefined,

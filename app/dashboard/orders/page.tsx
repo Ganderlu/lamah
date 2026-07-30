@@ -25,6 +25,7 @@ import OrdersPagination from "@/components/dashboard/orders/OrdersPagination";
 import OrdersTable from "@/components/dashboard/orders/OrdersTable";
 import { auth, db } from "@/firebase/client";
 import { CheckCircle2 } from "lucide-react";
+import { useCartStore } from "@/lib/store/cart";
 import type {
   CustomerOrder,
   OrderStatus,
@@ -61,6 +62,7 @@ export default function OrdersPage() {
   });
 
   // Handle Stripe checkout success → redirects here with ?checkout_success=true&order=LAMAH-XXXXXX
+  const clearCart = useCartStore((state) => state.clearCart);
   useEffect(() => {
     const checkoutSuccess = searchParams?.get("checkout_success");
     const orderParam = searchParams?.get("order");
@@ -73,8 +75,17 @@ export default function OrdersPage() {
         message: `Payment complete!${orderText} Your order is now being processed.`,
         severity: "success",
       });
+      // Clear the customer's cart on confirmed successful payment landing.
+      // This is the authoritative clear (handleCheckout only schedules a
+      // best-effort clear when the tab actually unloads, so clicking Back
+      // from Stripe or cancelling mid-flow preserves cart contents).
+      try {
+        void clearCart();
+      } catch (err) {
+        console.warn("[orders] clearCart after checkout success failed", err);
+      }
     }
-  }, [searchParams]);
+  }, [searchParams, clearCart]);
 
   // Auth required — redirect to /login if not signed in
   useEffect(() => {

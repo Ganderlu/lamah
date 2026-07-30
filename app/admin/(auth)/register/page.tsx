@@ -27,7 +27,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "@/firebase/client";
+import { adminAuth, db } from "@/firebase/client";
 import {
   Eye,
   EyeOff,
@@ -182,7 +182,7 @@ export default function AdminRegisterPage() {
   const onSubmit = async (data: RegisterInputs) => {
     setSubmitting(true);
     try {
-      const userCred = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      const userCred = await createUserWithEmailAndPassword(adminAuth, data.email, data.password);
       const uid = userCred.user.uid;
 
       const adminsRef = doc(db, "admins", uid);
@@ -219,7 +219,7 @@ export default function AdminRegisterPage() {
       });
 
       try {
-        await auth.signOut();
+        await adminAuth.signOut();
       } catch (_) {}
 
       setTimeout(() => {

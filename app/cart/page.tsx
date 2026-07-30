@@ -30,7 +30,7 @@ import type { AuthUserProfile } from "@/lib/store/auth";
 
 export default function CartPage() {
   const router = useRouter();
-  const { items, removeItem, updateQuantity, getTotalPrice, getTotalItems } =
+  const { items, removeItem, updateQuantity, getTotalPrice, getTotalItems, clearCart } =
     useCartStore();
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<{ uid: string; email: string | null } | null>(null);
@@ -104,7 +104,20 @@ export default function CartPage() {
 
     try {
       setIsLoading(true);
-      const idToken = await auth.currentUser?.getIdToken(true);
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setError("Your session has expired. Please sign in again.");
+        setIsLoading(false);
+        router.push(`/login?next=${encodeURIComponent("/cart")}`);
+        return;
+      }
+
+      let idToken: string | undefined;
+      try {
+        idToken = await currentUser.getIdToken(true);
+      } catch (tokenErr) {
+        console.error("[checkout] Failed to refresh ID token", tokenErr);
+      }
       if (!idToken) {
         setError("Your session has expired. Please sign in again.");
         setIsLoading(false);
@@ -135,23 +148,69 @@ export default function CartPage() {
         } catch {
           /* ignore */
         }
+
         if (response.status === 401) {
-          router.push(`/login?next=${encodeURIComponent("/cart")}`);
+          const stillLoggedIn = !!auth.currentUser;
+          if (stillLoggedIn) {
+            setError(
+              parsedError +
+                " If this continues, please sign out then sign in again."
+            );
+          } else {
+            router.push(`/login?next=${encodeURIComponent("/cart")}`);
+          }
           return;
         }
         throw new Error(parsedError);
       }
 
       const { url } = await response.json();
-      if (url) {
-        window.location.href = url;
-      } else {
-        throw new Error("No checkout URL returned.");
+      if (!url || typeof url !== "string") {
+        throw new Error("No checkout session URL returned. Please try again.");
+      }
+
+      if (typeof window === "undefined") {
+        throw new Error("Window not available for navigation.");
+      }
+
+      // Schedule cart clear AS SOON AS the page begins unloading (navigation to
+      // Stripe has started). If the user clicks Back before the page actually
+      // unloads (or cancels via Stripe's UI and the tab survives), the cart
+      // stays populated for a retry.
+      const clearOnLeave = () => {
+        try {
+          void clearCart();
+        } catch (clearErr) {
+          console.warn("[checkout] beforeunload clearCart failed", clearErr);
+        }
+      };
+      window.addEventListener("beforeunload", clearOnLeave, { once: true, passive: true });
+
+      // Synchronous navigate first via location.assign (preferred) then href.
+      // We also schedule a fallback clear after a short delay, in case the
+      // browser suppresses beforeunload for cross-site navigations.
+      const fallbackClearTimer = window.setTimeout(() => {
+        clearOnLeave();
+      }, 1200);
+
+      try {
+        window.location.assign(url);
+      } catch (navErr) {
+        window.clearTimeout(fallbackClearTimer);
+        window.removeEventListener("beforeunload", clearOnLeave);
+        console.warn("[checkout] window.location.assign failed; falling back to href", navErr);
+        try {
+          window.location.href = url;
+        } catch (hrefErr) {
+          console.error("[checkout] href navigation failed too", hrefErr);
+          window.clearTimeout(fallbackClearTimer);
+          window.removeEventListener("beforeunload", clearOnLeave);
+          throw new Error("Could not navigate to Stripe checkout. Please try again.");
+        }
       }
     } catch (err: any) {
       console.error("Error during checkout:", err);
       setError(err?.message || "Failed to start checkout. Please try again.");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -297,72 +356,6 @@ export default function CartPage() {
                   </Stack>
                 </Paper>
               </motion.div>
-            )}
-
-            {authLoaded && user && (
-              <Paper
-                sx={{
-                  mb: 5,
-                  p: { xs: 2, md: 2.5 },
-                  borderRadius: "18px",
-                  bgcolor: "#0D0D0D",
-                  border: "1px solid rgba(57,255,20,0.15)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 2,
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <Box
-                    sx={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: "50%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      bgcolor: "rgba(57,255,20,0.1)",
-                      color: "#39FF14",
-                    }}
-                  >
-                    <Lock size={18} />
-                  </Box>
-                  <Box>
-                    <Typography
-                      sx={{
-                        color: "#fff",
-                        fontFamily: "Poppins, sans-serif",
-                        fontWeight: 700,
-                        fontSize: "0.95rem",
-                      }}
-                    >
-                      Checkout secured — orders saved to your account
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: "#A0A0A0",
-                        fontFamily: "Poppins, sans-serif",
-                      }}
-                    >
-                      {profile?.email || user.email || "Signed in"}
-                      {profile?.firstName ? ` (${profile.firstName} ${profile.lastName}`.trimEnd() + ")" : ""}
-                    </Typography>
-                  </Box>
-                </Box>
-                <Chip
-                  label="Signed In"
-                  sx={{
-                    bgcolor: "rgba(57,255,20,0.1)",
-                    color: "#39FF14",
-                    fontFamily: "Inter, sans-serif",
-                    fontWeight: 700,
-                    border: "1px solid rgba(57,255,20,0.25)",
-                    borderRadius: 999,
-                  }}
-                />
-              </Paper>
             )}
 
             {error && (

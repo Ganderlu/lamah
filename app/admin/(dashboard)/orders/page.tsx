@@ -51,7 +51,6 @@ import {
   Truck,
   Search,
   Filter,
-  RefreshCw,
   Download,
   Printer,
   MoreVertical,
@@ -634,62 +633,6 @@ export default function AdminOrdersPage() {
                 Orders
               </Typography>
             </Box>
-          </Box>
-          <Box sx={{ display: "flex", gap: 1.5 }}>
-            <Button
-              variant="outlined"
-              startIcon={<Download size={18} />}
-              sx={{
-                borderColor: "rgba(57,255,20,0.3)",
-                color: "#fff",
-                textTransform: "none",
-                fontFamily: "Poppins, sans-serif",
-                "&:hover": {
-                  borderColor: "#39FF14",
-                  bgcolor: "rgba(57,255,20,0.05)",
-                },
-              }}
-            >
-              Export
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<Printer size={18} />}
-              sx={{
-                borderColor: "rgba(57,255,20,0.3)",
-                color: "#fff",
-                textTransform: "none",
-                fontFamily: "Poppins, sans-serif",
-                "&:hover": {
-                  borderColor: "#39FF14",
-                  bgcolor: "rgba(57,255,20,0.05)",
-                },
-              }}
-            >
-              Print
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<RefreshCw size={18} />}
-              onClick={() => {
-                setLoading(true);
-                setTimeout(() => {
-                  setLoading(false);
-                }, 800);
-              }}
-              sx={{
-                borderColor: "rgba(57,255,20,0.3)",
-                color: "#fff",
-                textTransform: "none",
-                fontFamily: "Poppins, sans-serif",
-                "&:hover": {
-                  borderColor: "#39FF14",
-                  bgcolor: "rgba(57,255,20,0.05)",
-                },
-              }}
-            >
-              Refresh
-            </Button>
           </Box>
         </Box>
       </motion.div>

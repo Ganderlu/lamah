@@ -15,8 +15,6 @@ import {
   Select,
   MenuItem,
   Grid2 as Grid,
-  Tabs,
-  Tab,
   Divider,
   Skeleton,
   Snackbar,
@@ -50,20 +48,11 @@ import { fetchUserProfile, updateUserProfile } from "@/lib/users";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import type { AuthUserProfile } from "@/lib/store/auth";
 
-type ActiveTab =
-  | "profile"
-  | "security"
-  | "password"
-  | "notifications"
-  | "privacy"
-  | "connected";
-
 export default function AccountSettingsPage() {
   const { profile, setProfile } = useAuthStore();
   const user = auth.currentUser;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<ActiveTab>("profile");
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -190,15 +179,6 @@ export default function AccountSettingsPage() {
     setSnackbar({ ...snackbar, open: false });
   };
 
-  const tabLabels: { [key in ActiveTab]: string } = {
-    profile: "Profile Information",
-    security: "Security",
-    password: "Password",
-    notifications: "Notifications",
-    privacy: "Privacy",
-    connected: "Connected Accounts",
-  };
-
   return (
     <DashboardLayout>
       <motion.div
@@ -234,57 +214,7 @@ export default function AccountSettingsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
       >
-        <Box
-          sx={{
-            mb: 4,
-            borderBottom: 1,
-            borderColor: "rgba(57,255,20,0.15)",
-            bgcolor: "#090909",
-            borderRadius: "18px",
-            px: 2,
-            overflowX: "auto",
-          }}
-        >
-          <Tabs
-            value={activeTab}
-            onChange={(_, newValue) => setActiveTab(newValue as ActiveTab)}
-            sx={{
-              "& .MuiTabs-indicator": {
-                bgcolor: "#39FF14",
-                height: 3,
-                borderRadius: "3px 3px 0 0",
-              },
-              "& .MuiTab-root": {
-                color: "#A0A0A0",
-                fontFamily: "Poppins, sans-serif",
-                fontWeight: 500,
-                textTransform: "none",
-                fontSize: "0.875rem",
-                py: 2,
-                "&.Mui-selected": {
-                  color: "#39FF14",
-                  fontWeight: 700,
-                },
-              },
-            }}
-            variant="scrollable"
-            scrollButtons="auto"
-          >
-            {(Object.keys(tabLabels) as ActiveTab[]).map((tab) => (
-              <Tab key={tab} label={tabLabels[tab]} value={tab} />
-            ))}
-          </Tabs>
-        </Box>
-      </motion.div>
-
-      <motion.div
-        key={activeTab}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        {activeTab === "profile" && (
-          <Grid container spacing={3}>
+        <Grid container spacing={3}>
             <Grid size={{ xs: 12, lg: 8 }}>
               <Card
                 sx={{
@@ -1106,7 +1036,6 @@ export default function AccountSettingsPage() {
               </Card>
             </Grid>
           </Grid>
-        )}
       </motion.div>
 
       <Dialog

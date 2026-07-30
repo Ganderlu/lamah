@@ -46,8 +46,6 @@ import {
   LayoutDashboard,
   Users,
   RefreshCw,
-  Download,
-  Upload,
   Search,
   Filter,
   MoreVertical,
@@ -71,6 +69,8 @@ import {
   MessageSquare,
   Plus,
   Gift,
+  Repeat,
+  Smartphone,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -199,7 +199,39 @@ export default function AdminCustomersPage() {
         fetchCustomers(statusFilter, membershipFilter),
         fetchAllOrders(),
       ]);
-      setCustomers(customersData);
+
+      const ordersByCustomer = new Map<string, { count: number; spent: number }>();
+      for (const order of ordersData) {
+        const cid = order.customerId || order.customerEmail;
+        if (!cid) continue;
+        const entry = ordersByCustomer.get(cid) ?? { count: 0, spent: 0 };
+        entry.count += 1;
+        const isPaid =
+          order.paymentStatus === "Paid" ||
+          order.paymentStatus === "Refunded" ||
+          order.status === "Delivered" ||
+          order.deliveryStatus === "Delivered";
+        if (isPaid) entry.spent += Number(order.total || 0);
+        ordersByCustomer.set(cid, entry);
+      }
+
+      const enriched = customersData.map((c) => {
+        const byId = ordersByCustomer.get(c.id ?? "");
+        const byEmail = c.email ? ordersByCustomer.get(c.email) : undefined;
+        const count = Math.max(
+          byId?.count ?? 0,
+          byEmail?.count ?? 0,
+          Number(c.ordersCount ?? 0)
+        );
+        const spent = Math.max(
+          byId?.spent ?? 0,
+          byEmail?.spent ?? 0,
+          Number(c.totalSpent ?? 0)
+        );
+        return { ...c, ordersCount: count, totalSpent: spent };
+      });
+
+      setCustomers(enriched);
       setOrders(ordersData);
       
       const total = ordersData.reduce((sum, order) => sum + (order.total || 0), 0);
@@ -319,10 +351,6 @@ export default function AdminCustomersPage() {
   };
 
   // Mock data for customer profile
-  const recentOrders = [
-    { id: "#LO-8721", products: "Lamah Signature Hoodie", amount: 89000, status: "Delivered", date: "May 20, 2026" },
-    { id: "#LO-8715", products: "Oversized Tee, Cargo Pants", amount: 156000, status: "Processing", date: "May 15, 2026" },
-  ];
   const recentActivity = [
     { type: "Account Created", date: "May 15, 2024", icon: <UserCheck size={16} /> },
     { type: "Recent Login", date: "May 20, 2026", icon: <CheckCircle2 size={16} /> },
@@ -388,57 +416,6 @@ export default function AdminCustomersPage() {
                 Customers
               </Typography>
             </Box>
-          </Box>
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <Button
-              variant="outlined"
-              startIcon={<Download size={16} />}
-              sx={{
-                borderColor: "rgba(57,255,20,0.3)",
-                color: "#39FF14",
-                textTransform: "none",
-                fontFamily: "Poppins, sans-serif",
-                "&:hover": {
-                  borderColor: "#39FF14",
-                  bgcolor: "rgba(57,255,20,0.05)",
-                },
-              }}
-            >
-              Export Customers
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<Upload size={16} />}
-              sx={{
-                borderColor: "rgba(57,255,20,0.3)",
-                color: "#39FF14",
-                textTransform: "none",
-                fontFamily: "Poppins, sans-serif",
-                "&:hover": {
-                  borderColor: "#39FF14",
-                  bgcolor: "rgba(57,255,20,0.05)",
-                },
-              }}
-            >
-              Import Customers
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<RefreshCw size={16} />}
-              onClick={loadData}
-              sx={{
-                borderColor: "rgba(57,255,20,0.3)",
-                color: "#39FF14",
-                textTransform: "none",
-                fontFamily: "Poppins, sans-serif",
-                "&:hover": {
-                  borderColor: "#39FF14",
-                  bgcolor: "rgba(57,255,20,0.05)",
-                },
-              }}
-            >
-              Refresh
-            </Button>
           </Box>
         </Box>
       </motion.div>
@@ -1103,31 +1080,21 @@ export default function AdminCustomersPage() {
                         >
                           <TableCell sx={{ py: 2 }}>
                             <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                              {customer.avatar ? (
-                                <img
-                                  src={customer.avatar}
-                                  alt={customer.firstName}
-                                  style={{
-                                    width: 40,
-                                    height: 40,
-                                    borderRadius: "50%",
-                                    objectFit: "cover",
-                                  }}
-                                />
-                              ) : (
-                                <Avatar
-                                  sx={{
-                                    width: 40,
-                                    height: 40,
-                                    bgcolor: "rgba(57,255,20,0.2)",
-                                    color: "#39FF14",
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  {customer.firstName[0]}
-                                  {customer.lastName[0]}
-                                </Avatar>
-                              )}
+                              <Avatar
+                                src={customer.avatar || undefined}
+                                alt={`${customer.firstName} ${customer.lastName}`}
+                                sx={{
+                                  width: 40,
+                                  height: 40,
+                                  bgcolor: "rgba(57,255,20,0.2)",
+                                  color: "#39FF14",
+                                  fontWeight: 700,
+                                  fontFamily: "Inter, sans-serif",
+                                }}
+                              >
+                                {(customer.firstName?.[0] ?? "").toUpperCase()}
+                                {(customer.lastName?.[0] ?? "").toUpperCase()}
+                              </Avatar>
                               <Box>
                                 <Typography
                                   sx={{
@@ -1154,7 +1121,10 @@ export default function AdminCustomersPage() {
                             {customer.email}
                           </TableCell>
                           <TableCell sx={{ py: 2, color: "#fff", fontFamily: "Inter, sans-serif" }}>
-                            {customer.ordersCount || 0}
+                            {customer.phone || "—"}
+                          </TableCell>
+                          <TableCell sx={{ py: 2, color: "#fff", fontFamily: "Inter, sans-serif" }}>
+                            {customer.ordersCount ?? 0}
                           </TableCell>
                           <TableCell
                             sx={{
@@ -1164,7 +1134,7 @@ export default function AdminCustomersPage() {
                               fontWeight: 700,
                             }}
                           >
-                            {customer.totalSpent ? formatCurrency(customer.totalSpent) : "₦890,000"}
+                            {formatCurrency(Number(customer.totalSpent ?? 0))}
                           </TableCell>
                           <TableCell sx={{ py: 2 }}>
                             <MembershipChip membership={customer.membership} />
@@ -1224,32 +1194,22 @@ export default function AdminCustomersPage() {
                     }}
                   >
                     <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, mb: 2 }}>
-                      {customer.avatar ? (
-                        <img
-                          src={customer.avatar}
-                          alt={customer.firstName}
-                          style={{
-                            width: 56,
-                            height: 56,
-                            borderRadius: "50%",
-                            objectFit: "cover",
-                          }}
-                        />
-                      ) : (
-                        <Avatar
-                          sx={{
-                            width: 56,
-                            height: 56,
-                            bgcolor: "rgba(57,255,20,0.2)",
-                            color: "#39FF14",
-                            fontWeight: 700,
-                            flexShrink: 0,
-                          }}
-                        >
-                          {customer.firstName[0]}
-                          {customer.lastName[0]}
-                        </Avatar>
-                      )}
+                      <Avatar
+                        src={customer.avatar || undefined}
+                        alt={`${customer.firstName} ${customer.lastName}`}
+                        sx={{
+                          width: 56,
+                          height: 56,
+                          bgcolor: "rgba(57,255,20,0.2)",
+                          color: "#39FF14",
+                          fontWeight: 700,
+                          fontFamily: "Inter, sans-serif",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {(customer.firstName?.[0] ?? "").toUpperCase()}
+                        {(customer.lastName?.[0] ?? "").toUpperCase()}
+                      </Avatar>
                       <Box sx={{ flex: 1 }}>
                         <Box
                           sx={{
@@ -1291,6 +1251,18 @@ export default function AdminCustomersPage() {
                         >
                           {customer.email}
                         </Typography>
+                        {customer.phone && (
+                          <Typography
+                            sx={{
+                              color: "#A0A0A0",
+                              fontFamily: "Inter, sans-serif",
+                              fontSize: "0.875rem",
+                              mt: 0.5,
+                            }}
+                          >
+                            {customer.phone}
+                          </Typography>
+                        )}
                       </Box>
                     </Box>
 
@@ -1315,6 +1287,29 @@ export default function AdminCustomersPage() {
                               letterSpacing: "0.1em",
                             }}
                           >
+                            Orders
+                          </Typography>
+                          <Typography
+                            sx={{
+                              color: "#fff",
+                              fontWeight: 600,
+                              fontFamily: "Inter, sans-serif",
+                              fontSize: "1rem",
+                            }}
+                          >
+                            {customer.ordersCount ?? 0}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                          <Typography
+                            sx={{
+                              color: "#A0A0A0",
+                              fontSize: "0.75rem",
+                              fontFamily: "Poppins, sans-serif",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.1em",
+                            }}
+                          >
                             Total Spent
                           </Typography>
                           <Typography
@@ -1325,7 +1320,7 @@ export default function AdminCustomersPage() {
                               fontSize: "1rem",
                             }}
                           >
-                            {customer.totalSpent ? formatCurrency(customer.totalSpent) : "₦890,000"}
+                            {formatCurrency(Number(customer.totalSpent ?? 0))}
                           </Typography>
                         </Box>
                       </Box>
@@ -1439,32 +1434,22 @@ export default function AdminCustomersPage() {
             {/* Customer Info */}
             <Box sx={{ p: 3 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
-                {selectedCustomer.avatar ? (
-                  <img
-                    src={selectedCustomer.avatar}
-                    alt={selectedCustomer.firstName}
-                    style={{
-                      width: 80,
-                      height: 80,
-                      borderRadius: "50%",
-                      objectFit: "cover",
-                    }}
-                  />
-                ) : (
-                  <Avatar
-                    sx={{
-                      width: 80,
-                      height: 80,
-                      bgcolor: "rgba(57,255,20,0.2)",
-                      color: "#39FF14",
-                      fontWeight: 700,
-                      fontSize: "2rem",
-                    }}
-                  >
-                    {selectedCustomer.firstName[0]}
-                    {selectedCustomer.lastName[0]}
-                  </Avatar>
-                )}
+                <Avatar
+                  src={selectedCustomer.avatar || undefined}
+                  alt={`${selectedCustomer.firstName} ${selectedCustomer.lastName}`}
+                  sx={{
+                    width: 80,
+                    height: 80,
+                    bgcolor: "rgba(57,255,20,0.2)",
+                    color: "#39FF14",
+                    fontWeight: 700,
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: "2rem",
+                  }}
+                >
+                  {(selectedCustomer.firstName?.[0] ?? "").toUpperCase()}
+                  {(selectedCustomer.lastName?.[0] ?? "").toUpperCase()}
+                </Avatar>
                 <Box>
                   <Typography
                     variant="h5"
@@ -1521,7 +1506,7 @@ export default function AdminCustomersPage() {
                           fontWeight: 700,
                         }}
                       >
-                        {selectedCustomer.ordersCount || 0}
+                        {selectedCustomer.ordersCount ?? 0}
                       </Typography>
                     </CardContent>
                   </Card>
@@ -1554,7 +1539,7 @@ export default function AdminCustomersPage() {
                           fontWeight: 700,
                         }}
                       >
-                        {selectedCustomer.rewardPoints}
+                        {selectedCustomer.rewardPoints ?? 0}
                       </Typography>
                     </CardContent>
                   </Card>
@@ -1700,84 +1685,125 @@ export default function AdminCustomersPage() {
                     >
                       Order History
                     </Typography>
-                    {recentOrders.map((order, idx) => (
-                      <Box
-                        key={idx}
-                        sx={{
-                          mb: 2,
-                          p: 2,
-                          bgcolor: "rgba(5,5,5,0.5)",
-                          borderRadius: 2,
-                          border: "1px solid rgba(57,255,20,0.1)",
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            mb: 1,
-                          }}
-                        >
-                          <Typography
-                            sx={{
-                              color: "#39FF14",
-                              fontWeight: 700,
-                              fontFamily: "Inter, sans-serif",
-                            }}
-                          >
-                            {order.id}
-                          </Typography>
-                          <Chip
-                            label={order.status}
-                            size="small"
-                            sx={{
-                              bgcolor:
-                                order.status === "Delivered"
-                                  ? "rgba(57,255,20,0.1)"
-                                  : "rgba(245,166,35,0.1)",
-                              color: order.status === "Delivered" ? "#39FF14" : "#F5A623",
-                            }}
-                          />
-                        </Box>
-                        <Typography
-                          sx={{
-                            color: "#A0A0A0",
-                            fontFamily: "Poppins, sans-serif",
-                            fontSize: "0.875rem",
-                            mb: 1,
-                          }}
-                        >
-                          {order.products}
-                        </Typography>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                          }}
-                        >
-                          <Typography
-                            sx={{
-                              color: "#fff",
-                              fontWeight: 700,
-                              fontFamily: "Inter, sans-serif",
-                            }}
-                          >
-                            {formatCurrency(order.amount)}
-                          </Typography>
+                    {(() => {
+                      const customerOrders = orders.filter(
+                        (o) =>
+                          o.customerId === selectedCustomer.id ||
+                          o.customerEmail === selectedCustomer.email
+                      );
+                      if (customerOrders.length === 0) {
+                        return (
                           <Typography
                             sx={{
                               color: "#A0A0A0",
                               fontFamily: "Poppins, sans-serif",
-                              fontSize: "0.75rem",
+                              fontSize: "0.875rem",
+                              p: 2,
+                              textAlign: "center",
+                              bgcolor: "rgba(5,5,5,0.5)",
+                              borderRadius: 2,
                             }}
                           >
-                            {order.date}
+                            No orders found for this customer.
                           </Typography>
-                        </Box>
-                      </Box>
-                    ))}
+                        );
+                      }
+                      return customerOrders.map((order) => {
+                        const productsSummary = Array.isArray(order.products)
+                          ? order.products
+                              .map((p: any) => p.name || p.title || p.productName || p.sku || "Item")
+                              .filter(Boolean)
+                              .slice(0, 3)
+                              .join(", ") +
+                            (order.products.length > 3 ? ` +${order.products.length - 3} more` : "")
+                          : "";
+                        const orderStatus =
+                          order.deliveryStatus || order.status || "Pending";
+                        const isSuccess =
+                          orderStatus === "Delivered";
+                        return (
+                          <Box
+                            key={order.id}
+                            sx={{
+                              mb: 2,
+                              p: 2,
+                              bgcolor: "rgba(5,5,5,0.5)",
+                              borderRadius: 2,
+                              border: "1px solid rgba(57,255,20,0.1)",
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                mb: 1,
+                              }}
+                            >
+                              <Typography
+                                sx={{
+                                  color: "#39FF14",
+                                  fontWeight: 700,
+                                  fontFamily: "Inter, sans-serif",
+                                }}
+                              >
+                                {order.orderNumber || order.id}
+                              </Typography>
+                              <Chip
+                                label={orderStatus}
+                                size="small"
+                                sx={{
+                                  bgcolor: isSuccess
+                                    ? "rgba(57,255,20,0.1)"
+                                    : "rgba(245,166,35,0.1)",
+                                  color: isSuccess ? "#39FF14" : "#F5A623",
+                                }}
+                              />
+                            </Box>
+                            {productsSummary && (
+                              <Typography
+                                sx={{
+                                  color: "#A0A0A0",
+                                  fontFamily: "Poppins, sans-serif",
+                                  fontSize: "0.875rem",
+                                  mb: 1,
+                                }}
+                              >
+                                {productsSummary}
+                              </Typography>
+                            )}
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                              }}
+                            >
+                              <Typography
+                                sx={{
+                                  color: "#fff",
+                                  fontWeight: 700,
+                                  fontFamily: "Inter, sans-serif",
+                                }}
+                              >
+                                {formatCurrency(Number(order.total ?? 0))}
+                              </Typography>
+                              <Typography
+                                sx={{
+                                  color: "#A0A0A0",
+                                  fontFamily: "Poppins, sans-serif",
+                                  fontSize: "0.75rem",
+                                }}
+                              >
+                                {order.createdAt
+                                  ? new Date(order.createdAt).toLocaleDateString()
+                                  : ""}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        );
+                      });
+                    })()}
                   </Box>
                 )}
 
@@ -2023,41 +2049,3 @@ export default function AdminCustomersPage() {
     </Box>
   );
 }
-
-// Repeat icon component
-const Repeat = ({ size = 24, color = "currentColor" }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color}
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="m17 2 4 4-4 4" />
-    <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
-    <path d="m7 22-4-4 4-4" />
-    <path d="M21 13v1a4 4 0 0 1-4 4H3" />
-  </svg>
-);
-
-// Smartphone icon component
-const Smartphone = ({ size = 24, color = "currentColor" }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color}
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
-    <path d="M12 18h.01" />
-  </svg>
-);

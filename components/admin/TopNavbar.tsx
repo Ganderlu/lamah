@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/firebase/client";
+import { adminAuth } from "@/firebase/client";
 import { fetchUnreadNotificationsCount } from "@/lib/notifications";
 import { fetchUnreadMessagesCount } from "@/lib/messages";
 import { fetchAdminProfile } from "@/lib/admin";
@@ -30,7 +30,7 @@ export default function AdminTopNavbar() {
 
   useEffect(() => {
     let cancelled = false;
-    const unsub = onAuthStateChanged(auth, async (user) => {
+    const unsub = onAuthStateChanged(adminAuth, async (user) => {
       try {
         if (user?.uid) {
           const [notificationsCount, messagesCount, admin] = await Promise.all([

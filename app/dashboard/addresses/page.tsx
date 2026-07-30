@@ -47,14 +47,11 @@ import {
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import type { Address } from "@/types/address";
 
-type Filter = "All" | "Saved" | "Default";
-
 export default function AddressesPage() {
   const profile = useAuthStore((state) => state.profile);
   const userId = auth.currentUser?.uid || "";
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<Filter>("All");
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editAddress, setEditAddress] = useState<Address | null>(null);
   const [deleteAddressId, setDeleteAddressId] = useState<string | null>(null);
@@ -178,11 +175,6 @@ export default function AddressesPage() {
     setCurrentMenuAddress(null);
   };
 
-  const filteredAddresses = addresses.filter((addr) => {
-    if (filter === "Default") return addr.isDefault;
-    return true;
-  });
-
   return (
     <DashboardLayout>
       {/* Page Header */}
@@ -246,49 +238,6 @@ export default function AddressesPage() {
         </Box>
       </motion.div>
 
-      {/* Filter Tabs */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            gap: 3,
-            mb: 4,
-            borderBottom: "1px solid rgba(57,255,20,0.15)",
-            bgcolor: "#090909",
-            borderRadius: "18px",
-            px: 2,
-            py: 1,
-          }}
-        >
-          {["All", "Saved", "Default"].map((tab) => (
-            <Box
-              key={tab}
-              onClick={() => setFilter(tab as Filter)}
-              sx={{
-                pb: 1,
-                px: 2,
-                cursor: "pointer",
-                borderBottom: 2,
-                borderColor: filter === tab ? "#39FF14" : "transparent",
-                color: filter === tab ? "#39FF14" : "#A0A0A0",
-                fontFamily: "Poppins, sans-serif",
-                fontWeight: filter === tab ? 700 : 500,
-                transition: "all 0.3s ease",
-                "&:hover": {
-                  color: "#39FF14",
-                },
-              }}
-            >
-              {tab} Addresses
-            </Box>
-          ))}
-        </Box>
-      </motion.div>
-
       {/* Address Grid */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -321,7 +270,7 @@ export default function AddressesPage() {
               </Grid>
             ))}
           </Grid>
-        ) : filteredAddresses.length === 0 ? (
+        ) : addresses.length === 0 ? (
           <Box
             sx={{
               display: "flex",
@@ -378,7 +327,7 @@ export default function AddressesPage() {
           </Box>
         ) : (
           <Grid container spacing={3}>
-            {filteredAddresses.map((address, index) => (
+            {addresses.map((address, index) => (
               <Grid size={{ xs: 12, sm: 6, md: 4 }} key={address.id}>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -583,7 +532,7 @@ export default function AddressesPage() {
       </motion.div>
 
       {/* Security Card */}
-      {filteredAddresses.length > 0 && (
+      {addresses.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

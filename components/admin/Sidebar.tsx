@@ -35,7 +35,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { signOut } from "firebase/auth";
-import { auth } from "@/firebase/client";
+import { adminAuth } from "@/firebase/client";
 import { useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { fetchAdminProfile } from "@/lib/admin";
@@ -69,7 +69,7 @@ export default function AdminSidebar({
 
   useEffect(() => {
     let cancelled = false;
-    const unsub = onAuthStateChanged(auth, async (user) => {
+    const unsub = onAuthStateChanged(adminAuth, async (user) => {
       if (!user) {
         if (!cancelled) {
           setAdminProfile(null);
@@ -96,7 +96,7 @@ export default function AdminSidebar({
     if (signingOut) return;
     setSigningOut(true);
     try {
-      await signOut(auth);
+      await signOut(adminAuth);
     } catch (err) {
       console.error("Admin sign-out error:", err);
     } finally {

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "@/firebase/client";
+import { adminAuth, db } from "@/firebase/client";
 import { Box, CircularProgress, Typography, Stack } from "@mui/material";
 import { ShieldAlert } from "lucide-react";
 
@@ -88,7 +88,7 @@ export default function AdminAuthGuard({
       }
     };
 
-    const unsub = onAuthStateChanged(auth, checkAdmin);
+    const unsub = onAuthStateChanged(adminAuth, checkAdmin);
 
     return () => {
       cancelled = true;

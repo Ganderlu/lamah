@@ -1,6 +1,6 @@
 
 // Import the functions you need from the SDKs you need
-import { initializeApp, getApps } from "firebase/app";
+import { initializeApp, getApps, FirebaseApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
@@ -18,17 +18,26 @@ const firebaseConfig = {
   measurementId: "G-NR36Z3J6KB"
 };
 
-// Initialize Firebase
-let app;
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApps()[0]; // if already initialized, use that one
-}
+const USER_APP_NAME = "[DEFAULT]";
+const ADMIN_APP_NAME = "lamah-admin";
 
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
-const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
+const getOrCreateApp = (name: string): FirebaseApp => {
+  const existing = getApps().find((app) => app.name === name);
+  if (existing) return existing;
+  return initializeApp(firebaseConfig, name);
+};
 
-export { auth, db, storage, analytics };
+// Primary (customer / user) app and auth
+const userApp = getOrCreateApp(USER_APP_NAME);
+const auth = getAuth(userApp);
+
+// Separate admin app and auth — independent session / persistence from the user app
+const adminApp = getOrCreateApp(ADMIN_APP_NAME);
+const adminAuth = getAuth(adminApp);
+
+// Shared Firestore / Storage instances (data is partitioned by collection)
+const db = getFirestore(userApp);
+const storage = getStorage(userApp);
+const analytics = typeof window !== 'undefined' ? getAnalytics(userApp) : null;
+
+export { auth, adminAuth, db, storage, analytics };
