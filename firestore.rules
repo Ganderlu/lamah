@@ -1,0 +1,160 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // HELPER FUNCTIONS  (Firestore rules syntax — ONLY single return expression.
+    //                    NO `let`, NO `if`, NO code blocks, NO semicolons inside!)
+    // -------------------------------------------------------------------------
+
+    // True when the signed-in Firebase user matches the document's UID key.
+    function signedInAs(uid) {
+      return request.auth != null && request.auth.uid == uid
+    }
+
+    // True when the signed-in user has an /admins/{uid} record (classic admin).
+    function hasAdminRecord() {
+      return request.auth != null
+          && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+    }
+
+    // True when the signed-in user has an elevated role stored on /users/{uid}.
+    function hasAdminRole() {
+      return request.auth != null
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in [
+               'super_admin',
+               'manager',
+               'director',
+               'inventory_manager',
+               'marketing_manager',
+               'customer_support',
+             ])
+    }
+
+    // True for anyone we consider an admin.
+    function isAdmin() {
+      return hasAdminRecord() || hasAdminRole()
+    }
+
+    // =========================================================================
+    // 1)  USERS  — /users/{uid}
+    //     - Anyone can read a user profile (usernames, order displays, etc.)
+    //     - A user can CREATE / UPDATE only their own profile
+    //     - ADMINS can list, read, update, delete ANY user (customer dashboard)
+    // =========================================================================
+    match /users/{uid} {
+      allow read:   if true
+      allow create, update: if signedInAs(uid) || isAdmin()
+      allow delete: if isAdmin()
+
+      // Any sub-doc under a user doc
+      match /{document=**} {
+        allow read, write: if isAdmin()
+      }
+    }
+
+    // =========================================================================
+    // 2)  ADMINS  — /admins/{uid}
+    //     - An admin can read their OWN admin record
+    //     - Admins can manage other admins
+    // =========================================================================
+    match /admins/{uid} {
+      allow read:   if signedInAs(uid) || isAdmin()
+      allow write:  if isAdmin()
+    }
+
+    // =========================================================================
+    // 3)  PUBLIC CATALOG  — readable by everyone, only admins write
+    // =========================================================================
+    match /products/{document=**}    { allow read: if true; allow write: if isAdmin() }
+    match /categories/{document=**}  { allow read: if true; allow write: if isAdmin() }
+    match /collections/{document=**} { allow read: if true; allow write: if isAdmin() }
+    match /newArrivals/{document=**} { allow read: if true; allow write: if isAdmin() }
+    match /banners/{document=**}     { allow read: if true; allow write: if isAdmin() }
+
+    match /settings/{document=**} {
+      allow read:  if true
+      allow write: if isAdmin()
+    }
+
+    // =========================================================================
+    // 4)  ORDERS  — uses "customerId" (also tolerate "userId" on old docs)
+    //     - Customer: read + create ONLY their own orders
+    //     - Admin:    full access (list all, update status, etc.)
+    // =========================================================================
+    match /orders/{orderId} {
+      allow read:
+        if isAdmin()
+        || signedInAs(resource.data.customerId)
+        || signedInAs(resource.data.userId)
+
+      allow create:
+        if isAdmin()
+        || signedInAs(request.resource.data.customerId)
+        || signedInAs(request.resource.data.userId)
+
+      allow update, delete: if isAdmin()
+    }
+
+    // =========================================================================
+    // 5)  WISHLISTS + CARTS  — doc-id == user uid
+    // =========================================================================
+    match /wishlists/{uid} { allow read, write: if signedInAs(uid) || isAdmin() }
+    match /carts/{uid}     { allow read, write: if signedInAs(uid) || isAdmin() }
+
+    // =========================================================================
+    // 6)  ADDRESSES  — root-level collection with "userId" on each doc
+    // =========================================================================
+    match /addresses/{addressId} {
+      allow read:
+        if isAdmin()
+        || (resource != null && signedInAs(resource.data.userId))
+
+      allow create:
+        if isAdmin()
+        || signedInAs(request.resource.data.userId)
+
+      allow update, delete:
+        if isAdmin()
+        || (resource != null && signedInAs(resource.data.userId))
+    }
+
+    // =========================================================================
+    // 7)  NOTIFICATIONS
+    //     - Customer reads only notifications addressed to them (userId field)
+    //     - Admin reads / creates / deletes ALL notifications
+    // =========================================================================
+    match /notifications/{notifId} {
+      allow read:
+        if isAdmin()
+        || (resource != null && signedInAs(resource.data.userId))
+
+      allow update:
+        if isAdmin()
+        || (resource != null && signedInAs(resource.data.userId))
+
+      allow create, delete: if isAdmin()
+    }
+
+    // =========================================================================
+    // 8)  MESSAGES  (contact form)
+    //     - Anyone (even signed-out) can CREATE a message
+    //     - Only admins READ / UPDATE / DELETE messages
+    // =========================================================================
+    match /messages/{messageId} {
+      allow create: if true
+      allow read, update, delete: if isAdmin()
+    }
+
+    // =========================================================================
+    // CATCH-ALL
+    //   Admins get blanket access for any new collections you add later.
+    //   Everything else is denied by default (no other rule matches → denied).
+    // =========================================================================
+    match /{document=**} {
+      allow read, write: if isAdmin()
+    }
+  }
+}

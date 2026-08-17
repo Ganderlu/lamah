@@ -44,7 +44,7 @@ import PasswordInput from '@/components/auth/PasswordInput';
 import SocialLoginButtons from '@/components/auth/SocialLoginButtons';
 import { auth, db } from '@/firebase/client';
 import { useAuthStore, type AuthUserProfile } from '@/lib/store/auth';
-import { Mail, MessageSquare } from 'lucide-react';
+import { ArrowRight, Mail, MessageSquare } from 'lucide-react';
 
 const loginSchema = z.object({
   identifier: z.string().min(1, 'Enter your email address or username'),
@@ -344,15 +344,33 @@ export default function LoginPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <Box sx={{ mb: 6 }}>
-            <Image
-              src="/images/lamahhlogo.png"
-              alt="Lamah Clothing Co."
-              width={160}
-              height={64}
-              priority
-            />
-          </Box>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 6 }}>
+            <Box>
+              <Image
+                src="/images/lamahhlogo.png"
+                alt="Lamah Clothing Co."
+                width={160}
+                height={64}
+                priority
+              />
+            </Box>
+            <Button
+              component={Link}
+              href="/"
+              variant="text"
+              size="small"
+              sx={{
+                color: '#A0A0A0',
+                fontFamily: 'Poppins, sans-serif',
+                fontWeight: 500,
+                textTransform: 'none',
+                '&:hover': { color: '#fff', bgcolor: 'transparent' },
+              }}
+            >
+              Back to Store
+              <ArrowRight size={14} style={{ marginLeft: 6 }} />
+            </Button>
+          </Stack>
 
           {!showForgotPassword ? (
             <>

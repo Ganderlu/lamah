@@ -18,26 +18,39 @@ const firebaseConfig = {
   measurementId: "G-NR36Z3J6KB"
 };
 
-const USER_APP_NAME = "[DEFAULT]";
-const ADMIN_APP_NAME = "lamah-admin";
-
-const getOrCreateApp = (name: string): FirebaseApp => {
-  const existing = getApps().find((app) => app.name === name);
+// Single shared Firebase App for BOTH customers and admins.
+//
+// We previously used a separate "lamah-admin" app so you could be signed-in
+// as both a customer and an admin in one browser.  But because Firestore
+// (`db`) was always attached to the user app, admin sign-ins were never
+// propagated to Firestore security rules → "Missing or insufficient
+// permissions".  We now use ONE app so Firestore rules always see the
+// signed-in user's `request.auth.uid`, whether they are a customer or an
+// admin. Role-based access is still enforced in firestore.rules (admins
+// collection + user.role checks).
+const getOrCreateApp = (name?: string): FirebaseApp => {
+  const existing = getApps().find((app) => app.name === (name ?? "[DEFAULT]"));
   if (existing) return existing;
   return initializeApp(firebaseConfig, name);
 };
 
-// Primary (customer / user) app and auth
-const userApp = getOrCreateApp(USER_APP_NAME);
-const auth = getAuth(userApp);
+const app = getOrCreateApp();
+const auth = getAuth(app);
 
-// Separate admin app and auth — independent session / persistence from the user app
-const adminApp = getOrCreateApp(ADMIN_APP_NAME);
-const adminAuth = getAuth(adminApp);
+// `adminAuth` now points to the SAME Auth instance. This keeps all existing
+// code that imports & uses `adminAuth` working without renames — sign-in,
+// sign-out, onAuthStateChanged, createUserWithEmailAndPassword all still
+// behave exactly the same, but now Firestore actually sees the admin's uid.
+const adminAuth = auth;
 
-// Shared Firestore / Storage instances (data is partitioned by collection)
-const db = getFirestore(userApp);
-const storage = getStorage(userApp);
-const analytics = typeof window !== 'undefined' ? getAnalytics(userApp) : null;
+const db = getFirestore(app);
+const storage = getStorage(app);
+const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 
-export { auth, adminAuth, db, storage, analytics };
+// Kept for backwards compatibility for any code that might have already
+// imported `adminDb` / `adminStorage` (they now all point to the same
+// shared instance).
+const adminDb = db;
+const adminStorage = storage;
+
+export { auth, adminAuth, db, storage, analytics, adminDb, adminStorage };
