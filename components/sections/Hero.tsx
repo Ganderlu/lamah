@@ -32,10 +32,11 @@ export default function Hero() {
     >
       {/* Animated Background Image with parallax */}
       <motion.div
-        style={{ y: bgY, scale: 1.08 }}
-        sx={{
+        style={{
+          y: bgY,
+          scale: 1.08,
           position: "absolute",
-          inset: 0,
+          inset: "0",
         }}
       >
         <Box
@@ -139,12 +140,21 @@ export default function Hero() {
         }}
       />
 
-      <Container
-        maxWidth="xl"
-        sx={{ position: "relative", zIndex: 10, px: { xs: 2, md: 4, lg: 6 } }}
-        component={motion.div}
-        style={{ y: contentY, opacity: contentOpacity, scale }}
+      <motion.div
+        style={{
+          y: contentY,
+          opacity: contentOpacity,
+          scale,
+          position: "relative",
+          zIndex: 10,
+          width: "100%",
+          padding: "0 16px",
+        }}
       >
+        <Container
+          maxWidth="xl"
+          sx={{ px: { xs: 2, md: 4, lg: 6 } }}
+        >
         <Box
           sx={{
             display: "grid",
@@ -161,7 +171,7 @@ export default function Hero() {
             <motion.div
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] as const }}
             >
               <Chip
                 icon={<Sparkles size={14} style={{ color: "#39FF14" }} />}
@@ -191,7 +201,7 @@ export default function Hero() {
               transition={{
                 duration: 0.9,
                 delay: 0.3,
-                ease: [0.22, 1, 0.36, 1],
+                ease: [0.22, 1, 0.36, 1] as const,
               }}
             >
               <Typography
@@ -201,7 +211,7 @@ export default function Hero() {
                 transition={{
                   duration: 0.9,
                   delay: 0.3,
-                  ease: [0.22, 1, 0.36, 1],
+                  ease: [0.22, 1, 0.36, 1] as const,
                 }}
                 sx={{
                   color: "#fff",
@@ -241,7 +251,7 @@ export default function Hero() {
               transition={{
                 duration: 0.8,
                 delay: 0.55,
-                ease: [0.22, 1, 0.36, 1],
+                ease: [0.22, 1, 0.36, 1] as const,
               }}
             >
               <Typography
@@ -268,7 +278,7 @@ export default function Hero() {
               transition={{
                 duration: 0.8,
                 delay: 0.75,
-                ease: [0.22, 1, 0.36, 1],
+                ease: [0.22, 1, 0.36, 1] as const,
               }}
             >
               <Stack
@@ -350,7 +360,7 @@ export default function Hero() {
               transition={{
                 duration: 0.8,
                 delay: 0.95,
-                ease: [0.22, 1, 0.36, 1],
+                ease: [0.22, 1, 0.36, 1] as const,
               }}
             >
               <Box
@@ -401,27 +411,30 @@ export default function Hero() {
           </Box>
 
           {/* Right Hero Visual */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, x: 40 }}
-            animate={{ opacity: 1, scale: 1, x: 0 }}
-            transition={{
-              duration: 1,
-              delay: 0.45,
-              ease: [0.22, 1, 0.36, 1],
-            }}
-            style={{
+          <Box
+            sx={{
               display: "flex",
               justifyContent: { xs: "center", lg: "flex-end" },
               width: "100%",
             }}
           >
-            <Box
-              sx={{
-                position: "relative",
-                width: "100%",
-                maxWidth: { xs: 420, sm: 460, md: 500 },
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, x: 40 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              transition={{
+                duration: 1,
+                delay: 0.45,
+                ease: [0.22, 1, 0.36, 1] as const,
               }}
+              style={{ width: "100%" }}
             >
+              <Box
+                sx={{
+                  position: "relative",
+                  width: "100%",
+                  maxWidth: { xs: 420, sm: 460, md: 500 },
+                }}
+              >
               {/* Outer aura glow */}
               <motion.div
                 animate={{
@@ -433,7 +446,7 @@ export default function Hero() {
                   repeat: Infinity,
                   ease: "easeInOut",
                 }}
-                sx={{
+                style={{
                   position: "absolute",
                   inset: "-30px",
                   borderRadius: "36px",
@@ -503,7 +516,7 @@ export default function Hero() {
                       transition={{
                         duration: 0.8,
                         delay,
-                        ease: [0.22, 1, 0.36, 1],
+                        ease: [0.22, 1, 0.36, 1] as const,
                       }}
                       style={{ width: "100%" }}
                     >
@@ -578,20 +591,22 @@ export default function Hero() {
               </motion.div>
 
               {/* Floating mini badges */}
-              <motion.div
-                animate={{ y: [0, -8, 0] }}
-                transition={{
-                  duration: 4,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-                style={{
+              <Box
+                sx={{
                   position: "absolute",
                   top: { xs: "-18px", md: "-22px" },
                   left: { xs: "-10px", md: "-24px" },
                   zIndex: 5,
                 }}
               >
+                <motion.div
+                  animate={{ y: [0, -8, 0] }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                >
                 <Chip
                   label="LIMITED"
                   sx={{
@@ -608,23 +623,26 @@ export default function Hero() {
                     "& .MuiChip-label": { px: 1.8 },
                   }}
                 />
-              </motion.div>
+                </motion.div>
+              </Box>
 
-              <motion.div
-                animate={{ y: [0, 8, 0] }}
-                transition={{
-                  duration: 5,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 0.5,
-                }}
-                style={{
+              <Box
+                sx={{
                   position: "absolute",
                   bottom: { xs: "-14px", md: "-18px" },
                   right: { xs: "-6px", md: "-16px" },
                   zIndex: 5,
                 }}
               >
+                <motion.div
+                  animate={{ y: [0, 8, 0] }}
+                  transition={{
+                    duration: 5,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: 0.5,
+                  }}
+                >
                 <Box
                   sx={{
                     px: 2.2,
@@ -660,11 +678,14 @@ export default function Hero() {
                     LIVE DROP · 48 LEFT
                   </Typography>
                 </Box>
-              </motion.div>
+                </motion.div>
+              </Box>
             </Box>
-          </motion.div>
+            </motion.div>
+          </Box>
         </Box>
-      </Container>
+        </Container>
+      </motion.div>
 
       {/* Scroll Indicator */}
       <motion.div

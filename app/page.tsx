@@ -22,14 +22,14 @@ export default function Home() {
     <>
       <Navbar />
       <motion.div
-        style={{ scaleX }}
-        sx={{
+        style={{
+          scaleX,
           position: "fixed",
           top: 0,
           left: 0,
           right: 0,
           height: 3,
-          bgcolor: "#39FF14",
+          background: "#39FF14",
           transformOrigin: "0%",
           zIndex: 9999,
           boxShadow: "0 0 12px rgba(57,255,20,0.5)",

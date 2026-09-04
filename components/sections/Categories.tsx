@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Container, Typography, Grid, Card, CardContent, Button, CircularProgress, Chip } from "@mui/material";
-import { motion } from "framer-motion";
+import { motion, type Easing } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -33,7 +33,7 @@ const itemVariants = {
   show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] as const },
   },
 };
 
@@ -82,7 +82,7 @@ export default function Categories() {
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] as const }}
         >
           <Box sx={{ textAlign: "center", mb: { xs: 8, md: 12 } }}>
             <motion.div
@@ -166,7 +166,7 @@ export default function Categories() {
                 <motion.div variants={itemVariants}>
                   <motion.div
                     whileHover={{ y: -12 }}
-                    transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                    transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] as const }}
                   >
                     <Card
                       sx={{
@@ -194,7 +194,7 @@ export default function Categories() {
                         {category.image ? (
                           <motion.div
                             whileHover={{ scale: 1.1 }}
-                            transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+                            transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] as const }}
                             style={{ width: "100%", height: "100%" }}
                           >
                             <Image

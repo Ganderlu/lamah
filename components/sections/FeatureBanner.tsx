@@ -32,11 +32,7 @@ export default function FeatureBanner() {
     >
       {/* Animated Background Image with parallax */}
       <motion.div
-        style={{ y: bgY, scale: 1.12 }}
-        sx={{
-          position: "absolute",
-          inset: 0,
-        }}
+        style={{ y: bgY, scale: 1.12, position: "absolute", inset: 0 }}
       >
         <Box
           sx={{
@@ -97,22 +93,19 @@ export default function FeatureBanner() {
         }}
       />
 
-      <Container
-        maxWidth="xl"
-        component={motion.div}
-        style={{ y: textY, opacity }}
-        sx={{
-          position: "relative",
-          zIndex: 1,
-          width: "100%",
-          px: { xs: 2, md: 4, lg: 6 },
-        }}
+      <Box sx={{ px: { xs: 2, md: 4, lg: 6 } }}>
+      <motion.div
+        style={{ y: textY, opacity, position: "relative", zIndex: 1, width: "100%" }}
       >
+        <Container
+          maxWidth="xl"
+          disableGutters
+        >
         <motion.div
           initial={{ opacity: 0, x: -30 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] as const }}
         >
           <Box sx={{ maxWidth: { xs: "100%", md: 620 }, ml: { xs: 0, md: 0, lg: 2 } }}>
             <motion.div
@@ -154,7 +147,7 @@ export default function FeatureBanner() {
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.9, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.9, delay: 0.15, ease: [0.22, 1, 0.36, 1] as const }}
             >
               <Typography
                 variant="h2"
@@ -192,7 +185,7 @@ export default function FeatureBanner() {
               initial={{ opacity: 0, y: 25 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.8, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.8, delay: 0.35, ease: [0.22, 1, 0.36, 1] as const }}
             >
               <Typography
                 sx={{
@@ -214,7 +207,7 @@ export default function FeatureBanner() {
               initial={{ opacity: 0, y: 25 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.8, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.8, delay: 0.5, ease: [0.22, 1, 0.36, 1] as const }}
             >
               <motion.div
                 whileHover={{
@@ -252,7 +245,9 @@ export default function FeatureBanner() {
             </motion.div>
           </Box>
         </motion.div>
-      </Container>
+        </Container>
+      </motion.div>
+      </Box>
     </Box>
   );
 }

@@ -667,25 +667,12 @@ export default function Navbar() {
           ModalProps={{
             keepMounted: true,
           }}
-          TransitionComponent={({ children, in: open, ...props }) => (
-            <AnimatePresence>
-              {open && (
-                <motion.div
-                  initial={{ x: "100%" }}
-                  animate={{ x: 0 }}
-                  exit={{ x: "100%" }}
-                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                  {...props}
-                >
-                  {children}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          )}
           sx={{
             "& .MuiDrawer-paper": {
               boxSizing: "border-box",
               boxShadow: "-20px 0 60px rgba(0,0,0,0.5)",
+              transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+              transitionDuration: "0.4s",
             },
             "& .MuiBackdrop-root": {
               bgcolor: "rgba(0,0,0,0.5)",

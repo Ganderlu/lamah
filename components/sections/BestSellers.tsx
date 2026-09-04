@@ -68,7 +68,7 @@ export default function BestSellers() {
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] as const }}
         >
           <Box
             sx={{
@@ -151,25 +151,9 @@ export default function BestSellers() {
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-60px" }}
-          transition={{ duration: 0.9, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.9, delay: 0.15, ease: [0.22, 1, 0.36, 1] as const }}
         >
-          <Swiper
-            modules={[Navigation, Autoplay]}
-            spaceBetween={32}
-            slidesPerView={1}
-            autoplay={{
-              delay: 4500,
-              disableOnInteraction: false,
-              pauseOnMouseEnter: true,
-            }}
-            loop
-            speed={700}
-            navigation
-            breakpoints={{
-              640: { slidesPerView: 2, spaceBetween: 28 },
-              1024: { slidesPerView: 3, spaceBetween: 32 },
-              1440: { slidesPerView: 4, spaceBetween: 36 },
-            }}
+          <Box
             sx={{
               px: { xs: 0, md: 2 },
               pb: { xs: 2, md: 3 },
@@ -197,6 +181,24 @@ export default function BestSellers() {
               "& .swiper-button-prev": { left: { xs: 4, md: -4 }, top: "44%" },
             }}
           >
+          <Swiper
+            modules={[Navigation, Autoplay]}
+            spaceBetween={32}
+            slidesPerView={1}
+            autoplay={{
+              delay: 4500,
+              disableOnInteraction: false,
+              pauseOnMouseEnter: true,
+            }}
+            loop
+            speed={700}
+            navigation
+            breakpoints={{
+              640: { slidesPerView: 2, spaceBetween: 28 },
+              1024: { slidesPerView: 3, spaceBetween: 32 },
+              1440: { slidesPerView: 4, spaceBetween: 36 },
+            }}
+          >
             {[...bestSellers, ...bestSellers].map((product, idx) => (
               <SwiperSlide key={`${product.id}-${idx}`} style={{ height: "auto" }}>
                 <Box sx={{ py: 0.5 }}>
@@ -205,6 +207,7 @@ export default function BestSellers() {
               </SwiperSlide>
             ))}
           </Swiper>
+          </Box>
         </motion.div>
 
         <motion.div
