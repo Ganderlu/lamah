@@ -110,14 +110,23 @@ export default function WishlistPage() {
                         }}
                       >
                         <Box sx={{ position: "relative", height: 300 }}>
-                          <Image
-                            src={item.image}
-                            alt={item.name}
-                            fill
-                            style={{ objectFit: "cover" }}
-                          />
+                          <Link
+                            href={`/product/${item.id}`}
+                            style={{ position: "absolute", inset: 0, display: "block" }}
+                          >
+                            <Image
+                              src={item.image}
+                              alt={item.name}
+                              fill
+                              style={{ objectFit: "cover" }}
+                            />
+                          </Link>
                           <IconButton
-                            onClick={() => removeItem(item.id)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              removeItem(item.id);
+                            }}
                             sx={{
                               position: "absolute",
                               top: 10,
@@ -125,23 +134,31 @@ export default function WishlistPage() {
                               bgcolor: "rgba(5,5,5,0.7)",
                               color: "#ff4757",
                               "&:hover": { bgcolor: "rgba(5,5,5,0.9)" },
+                              zIndex: 2,
                             }}
                           >
                             <Trash2 size={20} />
                           </IconButton>
                         </Box>
                         <Box sx={{ p: 3 }}>
-                          <Typography
-                            variant="h6"
-                            sx={{
-                              fontFamily: "Poppins, sans-serif",
-                              color: "#fff",
-                              fontWeight: 600,
-                              mb: 1,
-                            }}
+                          <Link
+                            href={`/product/${item.id}`}
+                            style={{ textDecoration: "none" }}
                           >
-                            {item.name}
-                          </Typography>
+                            <Typography
+                              variant="h6"
+                              sx={{
+                                fontFamily: "Poppins, sans-serif",
+                                color: "#fff",
+                                fontWeight: 600,
+                                mb: 1,
+                                transition: "color 0.2s ease",
+                                "&:hover": { color: "#39FF14" },
+                              }}
+                            >
+                              {item.name}
+                            </Typography>
+                          </Link>
                           <Typography
                             variant="h5"
                             sx={{

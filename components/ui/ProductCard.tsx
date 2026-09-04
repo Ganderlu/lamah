@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Box, Card, Typography, IconButton, Button, Snackbar, Alert } from "@mui/material";
 import { Heart, Plus } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { useCartStore } from "@/lib/store/cart";
 import { useWishlistStore } from "@/lib/store/wishlist";
@@ -61,34 +62,43 @@ export default function ProductCard({ id, name, price, image, isNew = false }: P
         >
           {/* Product Image */}
           <Box sx={{ position: "relative", height: "320px" }}>
-            <Image
-              src={image}
-              alt={name}
-              fill
-              style={{ objectFit: "cover", transition: "transform 0.5s ease" }}
-            />
-            {isNew && (
-              <Box
-                sx={{
-                  position: "absolute",
-                  top: 12,
-                  left: 12,
-                  bgcolor: "#39FF14",
-                  color: "#050505",
-                  px: 2,
-                  py: 0.5,
-                  borderRadius: 4,
-                  fontSize: "0.75rem",
-                  fontWeight: 700,
-                  fontFamily: "Poppins, sans-serif",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                NEW
-              </Box>
-            )}
+            <Link
+              href={`/product/${id}`}
+              style={{ position: "absolute", inset: 0, display: "block" }}
+            >
+              <Image
+                src={image}
+                alt={name}
+                fill
+                style={{ objectFit: "cover", transition: "transform 0.5s ease" }}
+              />
+              {isNew && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: 12,
+                    left: 12,
+                    bgcolor: "#39FF14",
+                    color: "#050505",
+                    px: 2,
+                    py: 0.5,
+                    borderRadius: 4,
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    fontFamily: "Poppins, sans-serif",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  NEW
+                </Box>
+              )}
+            </Link>
             <IconButton
-              onClick={handleToggleWishlist}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleToggleWishlist();
+              }}
               sx={{
                 position: "absolute",
                 top: 12,
@@ -96,6 +106,7 @@ export default function ProductCard({ id, name, price, image, isNew = false }: P
                 bgcolor: "rgba(5,5,5,0.7)",
                 color: isWishlisted ? "#39FF14" : "#fff",
                 "&:hover": { bgcolor: "rgba(5,5,5,0.9)" },
+                zIndex: 2,
               }}
             >
               <Heart size={18} fill={isWishlisted ? "currentColor" : "none"} />
@@ -104,17 +115,26 @@ export default function ProductCard({ id, name, price, image, isNew = false }: P
 
           {/* Product Info */}
           <Box sx={{ p: 3 }}>
-            <Typography
-              variant="h6"
-              sx={{
-                color: "#fff",
-                fontFamily: "Poppins, sans-serif",
-                fontWeight: 600,
-                mb: 1,
-              }}
+            <Link
+              href={`/product/${id}`}
+              style={{ textDecoration: "none" }}
             >
-              {name}
-            </Typography>
+              <Typography
+                variant="h6"
+                sx={{
+                  color: "#fff",
+                  fontFamily: "Poppins, sans-serif",
+                  fontWeight: 600,
+                  mb: 1,
+                  transition: "color 0.2s ease",
+                  "&:hover": {
+                    color: "#39FF14",
+                  },
+                }}
+              >
+                {name}
+              </Typography>
+            </Link>
             <Box
               sx={{
                 display: "flex",

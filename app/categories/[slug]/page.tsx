@@ -28,6 +28,9 @@ const generateSlug = (name: string) =>
     .replace(/-+/g, "-")
     .trim();
 
+const normalizeForCompare = (value: string) =>
+  value.trim().toLowerCase().replace(/\s+/g, " ");
+
 export default function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const [category, setCategory] = useState<Category | null>(null);
@@ -38,10 +41,29 @@ export default function CategoryPage({ params }: { params: Promise<{ slug: strin
     const getCategoryData = async () => {
       try {
         const categories = await fetchCategories("Active");
-        let foundCategory = categories.find((cat) => cat.slug === slug);
+        const canonicalSlug = generateSlug(slug);
+        const rawLower = normalizeForCompare(slug);
+
+        let foundCategory = categories.find(
+          (cat) => generateSlug(cat.slug) === canonicalSlug
+        );
 
         if (!foundCategory) {
-          foundCategory = categories.find((cat) => generateSlug(cat.name) === slug);
+          foundCategory = categories.find(
+            (cat) => generateSlug(cat.name) === canonicalSlug
+          );
+        }
+
+        if (!foundCategory) {
+          foundCategory = categories.find(
+            (cat) => normalizeForCompare(cat.slug) === rawLower
+          );
+        }
+
+        if (!foundCategory) {
+          foundCategory = categories.find(
+            (cat) => normalizeForCompare(cat.name) === rawLower
+          );
         }
 
         setCategory(foundCategory || null);

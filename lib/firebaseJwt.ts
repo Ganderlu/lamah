@@ -151,8 +151,9 @@ export async function decodeAndVerifyFirebaseIdToken(
   }
 
   const now = Math.floor(Date.now() / 1000);
+  const CLOCK_SKEW_SECONDS = 60;
   const exp = Number(payload.exp);
-  if (!Number.isFinite(exp) || exp <= now) {
+  if (!Number.isFinite(exp) || exp <= now - CLOCK_SKEW_SECONDS) {
     throw new Error("ID token has expired.");
   }
   const iat = Number(payload.iat);

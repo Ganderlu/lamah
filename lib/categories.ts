@@ -24,13 +24,14 @@ export const fetchCategories = async (
     // Fetch all products to calculate product counts
     const productsSnapshot = await getDocs(collection(db, "products"));
     
-    // Count products per category
+    // Count products per category (case-insensitive)
     const productCountMap: Record<string, number> = {};
     productsSnapshot.docs.forEach((doc) => {
       const data = doc.data();
       const category = data.category || "";
       if (category) {
-        productCountMap[category] = (productCountMap[category] || 0) + 1;
+        const key = category.trim().toLowerCase();
+        productCountMap[key] = (productCountMap[key] || 0) + 1;
       }
     });
 
@@ -64,11 +65,13 @@ export const fetchCategories = async (
     let categories = categoriesSnapshot.docs.map((doc) => {
       const data = doc.data();
       const name = data.name || "";
-      const productCount = productCountMap[name] || 0;
+      const nameKey = name.trim().toLowerCase();
+      const productCount = productCountMap[nameKey] || 0;
+      const rawSlug = data.slug && data.slug.trim() !== "" ? data.slug : name;
       return {
         id: doc.id,
         name: name,
-        slug: data.slug || generateSlug(name),
+        slug: generateSlug(rawSlug),
         description: data.description || "",
         productCount: productCount,
         status: data.status || "Draft",

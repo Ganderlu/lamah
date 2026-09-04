@@ -18,10 +18,17 @@ const ADMIN_ROLES = new Set([
 ]);
 
 interface AdminRecord {
-  uid: string;
-  role?: string;
-  status?: string;
+  role?: unknown;
+  status?: unknown;
 }
+
+const isAdminRole = (role: unknown): boolean =>
+  typeof role === "string" && ADMIN_ROLES.has(role);
+
+const isStatusActive = (status: unknown): boolean =>
+  status === undefined ||
+  status === "active" ||
+  (typeof status === "string" && status.toLowerCase() === "active");
 
 export default function AdminAuthGuard({
   children,
@@ -30,46 +37,63 @@ export default function AdminAuthGuard({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [state, setState] = useState<
-    "loading" | "denied" | "authorized"
-  >("loading");
+
+  const [state, setState] = useState<"loading" | "denied" | "authorized">(
+    "loading"
+  );
   const [denyReason, setDenyReason] = useState<string>("");
 
   useEffect(() => {
     let cancelled = false;
 
-    const checkAdmin = async (user: User | null) => {
+    const verifyAdmin = async (user: User | null) => {
       if (!user) {
         if (cancelled) return;
-        setDenyReason("Please sign in to access the admin dashboard.");
+        setDenyReason("Please sign in to access the Admin Portal.");
         setState("denied");
         return;
       }
 
       try {
         const adminRef = doc(db, "admins", user.uid);
-        const snap = await getDoc(adminRef);
+        const userRef = doc(db, "users", user.uid);
+        const [adminSnap, userSnap] = await Promise.all([
+          getDoc(adminRef),
+          getDoc(userRef),
+        ]);
 
-        if (!snap.exists()) {
+        const hasAdminRecord = adminSnap.exists();
+
+        const adminRole =
+          (adminSnap.exists()
+            ? (adminSnap.data() as AdminRecord).role
+            : undefined) ??
+          (userSnap.exists()
+            ? (userSnap.data() as AdminRecord).role
+            : undefined);
+
+        const adminStatus =
+          (adminSnap.exists()
+            ? (adminSnap.data() as AdminRecord).status
+            : undefined) ??
+          (userSnap.exists()
+            ? (userSnap.data() as AdminRecord).status
+            : undefined);
+
+        const roleOk = isAdminRole(adminRole);
+        const statusOk = isStatusActive(adminStatus);
+
+        if (!hasAdminRecord || !roleOk || !statusOk) {
           if (cancelled) return;
+          try {
+            await adminAuth.signOut();
+          } catch (_) {
+            /* swallow sign-out errors */
+          }
           setDenyReason(
-            "This account is not registered as an admin. Please use an admin account."
-          );
-          setState("denied");
-          return;
-        }
-
-        const data = snap.data() as AdminRecord;
-        const roleOk = typeof data.role === "string" && ADMIN_ROLES.has(data.role);
-        const statusOk =
-          data.status === undefined ||
-          data.status === "active" ||
-          String(data.status).toLowerCase() === "active";
-
-        if (!roleOk || !statusOk) {
-          if (cancelled) return;
-          setDenyReason(
-            "Your admin account is not authorized or is currently inactive."
+            hasAdminRecord && !statusOk
+              ? "This admin account is currently inactive. Please contact a Super Admin for access."
+              : "Customer accounts are restricted from the Admin Portal. Please sign in with an admin account that was registered through /admin/register, or use the Manager / Director code to create one."
           );
           setState("denied");
           return;
@@ -81,29 +105,33 @@ export default function AdminAuthGuard({
       } catch (err) {
         console.error("Admin auth check failed:", err);
         if (cancelled) return;
+        try {
+          await adminAuth.signOut();
+        } catch (_) {
+          /* swallow */
+        }
         setDenyReason(
-          "Failed to verify admin access. Please sign in and try again."
+          "Failed to verify your admin account. Please sign in and try again."
         );
         setState("denied");
       }
     };
 
-    const unsub = onAuthStateChanged(adminAuth, checkAdmin);
+    const unsub = onAuthStateChanged(adminAuth, verifyAdmin);
 
     return () => {
       cancelled = true;
       unsub();
     };
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     if (state !== "denied") return;
-    const dest = `/admin/login${
+    const dest =
       pathname && pathname !== "/admin"
-        ? `?redirect=${encodeURIComponent(pathname)}`
-        : ""
-    }`;
-    const t = setTimeout(() => router.replace(dest), 1200);
+        ? `/admin/login?redirect=${encodeURIComponent(pathname)}`
+        : "/admin/login";
+    const t = setTimeout(() => router.replace(dest), 1500);
     return () => clearTimeout(t);
   }, [state, pathname, router]);
 
@@ -124,7 +152,7 @@ export default function AdminAuthGuard({
           p: 4,
         }}
       >
-        <Stack spacing={3} alignItems="center" sx={{ maxWidth: 460 }}>
+        <Stack spacing={3} alignItems="center" sx={{ maxWidth: 560 }}>
           <Box
             sx={{
               p: 3,
@@ -139,20 +167,21 @@ export default function AdminAuthGuard({
           <Typography
             sx={{
               fontFamily: "Bebas Neue, cursive",
-              fontSize: "2rem",
+              fontSize: "2.25rem",
               letterSpacing: "0.14em",
               color: "#fff",
               textAlign: "center",
             }}
           >
-            ACCESS DENIED
+            ADMIN ACCESS DENIED
           </Typography>
           <Typography
             sx={{
               fontFamily: "Poppins, sans-serif",
               color: "#A0A0A0",
               textAlign: "center",
-              lineHeight: 1.7,
+              lineHeight: 1.75,
+              fontSize: "0.95rem",
             }}
           >
             {denyReason}
@@ -165,7 +194,7 @@ export default function AdminAuthGuard({
               letterSpacing: "0.04em",
             }}
           >
-            Redirecting to admin sign in...
+            Redirecting to the admin sign-in page...
           </Typography>
         </Stack>
       </Box>
@@ -197,7 +226,7 @@ export default function AdminAuthGuard({
             letterSpacing: "0.04em",
           }}
         >
-          Verifying admin credentials...
+          Verifying admin access...
         </Typography>
       </Stack>
     </Box>

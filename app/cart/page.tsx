@@ -453,25 +453,37 @@ export default function CartPage() {
                             flexShrink: 0,
                           }}
                         >
-                          <Image
-                            src={item.image}
-                            alt={item.name}
-                            fill
-                            style={{ objectFit: "cover" }}
-                          />
+                          <Link
+                            href={`/product/${item.id}`}
+                            style={{ position: "absolute", inset: 0, display: "block" }}
+                          >
+                            <Image
+                              src={item.image}
+                              alt={item.name}
+                              fill
+                              style={{ objectFit: "cover" }}
+                            />
+                          </Link>
                         </Box>
                         <Box sx={{ flex: 1 }}>
-                          <Typography
-                            variant="h5"
-                            sx={{
-                              fontFamily: "Poppins, sans-serif",
-                              color: "#fff",
-                              fontWeight: 600,
-                              mb: 1,
-                            }}
+                          <Link
+                            href={`/product/${item.id}`}
+                            style={{ textDecoration: "none" }}
                           >
-                            {item.name}
-                          </Typography>
+                            <Typography
+                              variant="h5"
+                              sx={{
+                                fontFamily: "Poppins, sans-serif",
+                                color: "#fff",
+                                fontWeight: 600,
+                                mb: 1,
+                                transition: "color 0.2s ease",
+                                "&:hover": { color: "#39FF14" },
+                              }}
+                            >
+                              {item.name}
+                            </Typography>
+                          </Link>
                           <Typography
                             variant="h6"
                             sx={{

@@ -2,6 +2,7 @@ import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
   doc,
   updateDoc,
   deleteDoc,
@@ -68,6 +69,43 @@ export const fetchNewArrivals = async (
   } catch (error) {
     console.error("Error fetching new arrivals:", error);
     throw error;
+  }
+};
+
+export const fetchNewArrivalById = async (id: string): Promise<NewArrival | null> => {
+  try {
+    const docRef = doc(db, "newArrivals", id);
+    const docSnap = await getDoc(docRef);
+
+    if (!docSnap.exists()) return null;
+
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      productName: data.productName || "",
+      sku: data.sku || "",
+      category: data.category || "",
+      collection: data.collection || "",
+      price: data.price || 0,
+      discountPrice: data.discountPrice || undefined,
+      stock: data.stock || 0,
+      status: data.status || "Draft",
+      featured: data.featured || false,
+      newArrival: data.newArrival || false,
+      thumbnail: data.thumbnail || "",
+      gallery: data.gallery || [],
+      views: data.views || 0,
+      orders: data.orders || 0,
+      createdAt: toISOString(data.createdAt),
+      updatedAt: data.updatedAt ? toISOString(data.updatedAt) : undefined,
+      sizes: data.sizes || [],
+      colors: data.colors || [],
+      tags: data.tags || [],
+      description: data.description || "",
+    } as NewArrival;
+  } catch (error) {
+    console.error("Error fetching new arrival by id:", error);
+    return null;
   }
 };
 

@@ -2,6 +2,7 @@ import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
   doc,
   updateDoc,
   deleteDoc,
@@ -11,6 +12,9 @@ import {
 } from "firebase/firestore";
 import { db } from "@/firebase/client";
 import type { Product } from "@/types/product";
+
+const normalizeCategory = (value: string) =>
+  value.trim().toLowerCase().replace(/\s+/g, " ");
 
 // Fetch products by category
 export const fetchProductsByCategory = async (
@@ -22,7 +26,7 @@ export const fetchProductsByCategory = async (
       where("category", "==", categoryName)
     );
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map((doc) => {
+    const exactMatches = querySnapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         id: doc.id,
@@ -47,6 +51,43 @@ export const fetchProductsByCategory = async (
         updatedAt: data.updatedAt?.toDate?.()?.toISOString(),
       } as Product;
     });
+
+    if (exactMatches.length > 0) {
+      return exactMatches;
+    }
+
+    const targetNormalized = normalizeCategory(categoryName);
+    const allSnapshot = await getDocs(collection(db, "products"));
+    return allSnapshot.docs
+      .filter((doc) => {
+        const data = doc.data();
+        return normalizeCategory(data.category || "") === targetNormalized;
+      })
+      .map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name || "",
+          sku: data.sku || "",
+          description: data.description || "",
+          category: data.category || "",
+          collection: data.collection || "",
+          brand: data.brand || "",
+          price: data.price || 0,
+          discountPrice: data.discountPrice,
+          stock: data.stock || 0,
+          weight: data.weight,
+          sizes: data.sizes || [],
+          colors: data.colors || [],
+          tags: data.tags || [],
+          thumbnail: data.thumbnail,
+          gallery: data.gallery || [],
+          featured: data.featured || false,
+          status: data.status || "Draft",
+          createdAt: (data.createdAt?.toDate?.() || new Date()).toISOString(),
+          updatedAt: data.updatedAt?.toDate?.()?.toISOString(),
+        } as Product;
+      });
   } catch (error) {
     console.error("Error fetching products by category: ", error);
     throw error;
@@ -99,6 +140,42 @@ export const fetchProducts = async (
   } catch (error) {
     console.error("Error fetching products: ", error);
     throw error;
+  }
+};
+
+export const fetchProductById = async (id: string): Promise<Product | null> => {
+  try {
+    const productRef = doc(db, "products", id);
+    const productSnap = await getDoc(productRef);
+
+    if (!productSnap.exists()) return null;
+
+    const data = productSnap.data();
+    return {
+      id: productSnap.id,
+      name: data.name || "",
+      sku: data.sku || "",
+      description: data.description || "",
+      category: data.category || "",
+      collection: data.collection || "",
+      brand: data.brand || "",
+      price: data.price || 0,
+      discountPrice: data.discountPrice,
+      stock: data.stock || 0,
+      weight: data.weight,
+      sizes: data.sizes || [],
+      colors: data.colors || [],
+      tags: data.tags || [],
+      thumbnail: data.thumbnail,
+      gallery: data.gallery || [],
+      featured: data.featured || false,
+      status: data.status || "Draft",
+      createdAt: (data.createdAt?.toDate?.() || new Date()).toISOString(),
+      updatedAt: data.updatedAt?.toDate?.()?.toISOString(),
+    } as Product;
+  } catch (error) {
+    console.error("Error fetching product by id: ", error);
+    return null;
   }
 };
 

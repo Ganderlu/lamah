@@ -113,6 +113,14 @@ const StatusChip = ({ status }: { status: string }) => {
   );
 };
 
+const generateSlug = (name: string) =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .trim();
+
 export default function AdminCategoriesPage() {
   const [openModal, setOpenModal] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
@@ -131,6 +139,7 @@ export default function AdminCategoriesPage() {
     message: "",
     severity: "success",
   });
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [formData, setFormData] = useState<Partial<Category>>({
     name: "",
     slug: "",
@@ -197,10 +206,29 @@ export default function AdminCategoriesPage() {
   // Handle form changes
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "number" ? Number(value) : value,
-    }));
+    const typedValue = type === "number" ? Number(value) : value;
+
+    if (name === "slug") {
+      setSlugManuallyEdited(true);
+      setFormData((prev) => ({
+        ...prev,
+        slug: value,
+      }));
+      return;
+    }
+
+    setFormData((prev) => {
+      const next: Partial<Category> = {
+        ...prev,
+        [name]: typedValue,
+      };
+
+      if (name === "name" && !slugManuallyEdited) {
+        next.slug = generateSlug(String(typedValue || ""));
+      }
+
+      return next;
+    });
   };
 
   // Handle switch changes
@@ -214,6 +242,7 @@ export default function AdminCategoriesPage() {
   // Open create modal
   const handleOpenCreateModal = () => {
     setSelectedCategory(null);
+    setSlugManuallyEdited(false);
     setFormData({
       name: "",
       slug: "",
@@ -233,6 +262,9 @@ export default function AdminCategoriesPage() {
   // Open edit modal
   const handleOpenEditModal = (category: Category) => {
     setSelectedCategory(category);
+    setSlugManuallyEdited(
+      Boolean(category.slug) && category.slug !== generateSlug(category.name)
+    );
     setFormData({
       ...category,
     });
@@ -242,15 +274,21 @@ export default function AdminCategoriesPage() {
   // Handle form submit
   const handleSubmit = async () => {
     try {
+      const normalizedSlug = generateSlug(formData.slug || formData.name || "");
+      const payload: Partial<Category> = {
+        ...formData,
+        slug: normalizedSlug,
+      };
+
       if (selectedCategory?.id) {
-        await updateCategory(selectedCategory.id, formData);
+        await updateCategory(selectedCategory.id, payload);
         setSnackbar({
           open: true,
           message: "Category updated successfully",
           severity: "success",
         });
       } else {
-        await createCategory(formData as Omit<Category, "id" | "createdAt" | "updatedAt">);
+        await createCategory(payload as Omit<Category, "id" | "createdAt" | "updatedAt">);
         setSnackbar({
           open: true,
           message: "Category created successfully",
