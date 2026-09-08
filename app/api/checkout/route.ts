@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import type { OrderItem } from "@/types/order";
 import { decodeAndVerifyFirebaseIdToken } from "@/lib/firebaseJwt";
+import type { Auth as AdminAuth, DecodedIdToken } from "firebase-admin/auth";
+import type { Firestore as AdminFirestore } from "firebase-admin/firestore";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -14,11 +16,15 @@ const FIREBASE_PROJECT_ID =
 
 const DEFINITIVE_REVOCATION_CODE = "auth/id-token-revoked";
 
+interface FirebaseErrorWithCode extends Error {
+  code?: string;
+}
+
 function isRevocationError(err: unknown): boolean {
   return (
     err instanceof Error &&
     "code" in err &&
-    (err as any).code === DEFINITIVE_REVOCATION_CODE
+    (err as FirebaseErrorWithCode).code === DEFINITIVE_REVOCATION_CODE
   );
 }
 
@@ -62,7 +68,7 @@ async function verifyWithLenientDecode(token: string): Promise<{
 
   const payloadStr = lenientBase64UrlDecode(parts[1]);
   if (!payloadStr) return null;
-  let payload: any;
+  let payload: Record<string, unknown>;
   try {
     payload = JSON.parse(payloadStr);
   } catch {
@@ -84,8 +90,8 @@ async function verifyWithLenientDecode(token: string): Promise<{
   if (Number.isFinite(exp) && exp <= now - GRACE_EXP_SECONDS) return null;
 
   const profile = await fetchUserProfileViaRest(uid);
-  let email: string = payload.email ?? "";
-  let displayName: string = payload.name ?? "";
+  let email = typeof payload.email === "string" ? payload.email : "";
+  let displayName = typeof payload.name === "string" ? payload.name : "";
   if (profile) {
     if (profile.email) email = profile.email;
     if (profile.displayName) displayName = profile.displayName;
@@ -105,7 +111,7 @@ function getErrMessage(err: unknown): string {
 
 async function fetchUserProfileFromFirestore(
   uid: string,
-  adminDb: any
+  adminDb: AdminFirestore
 ): Promise<{ email: string; displayName: string } | null> {
   try {
     const snap = await adminDb.collection("users").doc(uid).get();
@@ -168,8 +174,8 @@ async function verifyWithAdminSdk(token: string): Promise<{
   email: string;
   name: string;
 } | null> {
-  let firebaseAuth: any | null = null;
-  let adminDb: any | null = null;
+  let firebaseAuth: AdminAuth | null = null;
+  let adminDb: AdminFirestore | null = null;
   try {
     const { getAdminAuth, getAdminFirestore } = await import("@/firebase/admin");
     firebaseAuth = getAdminAuth();
@@ -182,7 +188,7 @@ async function verifyWithAdminSdk(token: string): Promise<{
     return null;
   }
 
-  let decoded: any | null = null;
+  let decoded: DecodedIdToken | null = null;
   try {
     try {
       decoded = await firebaseAuth.verifyIdToken(token, false);
@@ -220,8 +226,8 @@ async function verifyWithAdminSdk(token: string): Promise<{
   const uid: string | undefined = decoded?.uid;
   if (!uid) return null;
 
-  let email: string = decoded.email ?? "";
-  let displayName: string = decoded.name ?? "";
+  let email = decoded?.email ?? "";
+  let displayName = (decoded as unknown as { name?: string }).name ?? "";
 
   const profile = await fetchUserProfileFromFirestore(uid, adminDb);
   if (profile) {
@@ -240,10 +246,10 @@ async function verifyWithJwtFallback(token: string): Promise<{
   email: string;
   name: string;
 } | null> {
-  let payload: any;
+  let payload: Record<string, unknown>;
   try {
     const decoded = await decodeAndVerifyFirebaseIdToken(token, FIREBASE_PROJECT_ID);
-    payload = decoded.payload;
+    payload = decoded.payload as Record<string, unknown>;
   } catch (err) {
     const msg = getErrMessage(err);
     if (isDefinitiveForgeryRejection(msg)) {
@@ -257,11 +263,11 @@ async function verifyWithJwtFallback(token: string): Promise<{
     return null;
   }
 
-  const uid: string | undefined = payload.sub;
+  const uid = typeof payload.sub === "string" && payload.sub.length > 0 ? payload.sub : undefined;
   if (!uid) throw new Error("UNAUTHORIZED");
 
-  let email: string = payload.email ?? "";
-  let displayName: string = payload.name ?? "";
+  let email = typeof payload.email === "string" ? payload.email : "";
+  let displayName = typeof payload.name === "string" ? payload.name : "";
 
   const clientProfile = await fetchUserProfileViaRest(uid);
   if (clientProfile) {
@@ -572,17 +578,18 @@ export async function POST(request: Request) {
     let message = "Internal Server Error";
     if (error instanceof Error) {
       message = error.message;
+      const errObj = error as unknown as Record<string, unknown>;
       if (
-        error instanceof Object &&
-        "type" in error &&
-        typeof (error as any).type === "string"
+        typeof errObj.type === "string"
       ) {
-        const stripeType = (error as any).type;
-        console.error("[checkout] Stripe error type:", stripeType, "code:", (error as any).code);
+        const stripeType = errObj.type as string;
+        const stripeCode = typeof errObj.code === "string" ? errObj.code : undefined;
+        console.error("[checkout] Stripe error type:", stripeType, "code:", stripeCode);
         if (stripeType.startsWith("Stripe")) {
           message =
-            (error as any).message ||
-            "We couldn't start the checkout payment provider. Please try again in a moment.";
+            typeof errObj.message === "string"
+              ? errObj.message
+              : "We couldn't start the checkout payment provider. Please try again in a moment.";
         }
       }
     }

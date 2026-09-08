@@ -12,21 +12,540 @@ import {
   IconButton,
   Alert,
   Stack,
-  Chip,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  FormControl,
+  Modal,
 } from "@mui/material";
 import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { motion } from "framer-motion";
 import { useCartStore } from "@/lib/store/cart";
-import { Minus, Plus, Trash2, Loader2, Lock, AlertTriangle, LogIn } from "lucide-react";
+import {
+  Minus,
+  Plus,
+  Trash2,
+  Loader2,
+  Lock,
+  AlertTriangle,
+  LogIn,
+  CreditCard,
+  X,
+  CheckCircle2,
+} from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "@/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import type { AuthUserProfile } from "@/lib/store/auth";
+import {
+  PayPalScriptProvider,
+  PayPalButtons,
+} from "@paypal/react-paypal-js";
+
+const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "";
+
+function PaymentSelectionModal({
+  open,
+  onClose,
+  selectedMethod,
+  onSelectMethod,
+  onConfirm,
+  isStripeLoading,
+  error,
+  paypalClientId,
+  createPayPalOrder,
+  onApprovePayPal,
+  onErrorPayPal,
+  onCancelPayPal,
+  paypalForceReRender,
+}: {
+  open: boolean;
+  onClose: () => void;
+  selectedMethod: "stripe" | "paypal";
+  onSelectMethod: (m: "stripe" | "paypal") => void;
+  onConfirm: () => void;
+  isStripeLoading: boolean;
+  error: string;
+  paypalClientId: string;
+  createPayPalOrder: () => Promise<string>;
+  onApprovePayPal: (data: { orderID: string }) => Promise<void>;
+  onErrorPayPal: (err: any) => void;
+  onCancelPayPal: () => void;
+  paypalForceReRender: any[];
+}) {
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      closeAfterTransition
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1600,
+      }}
+      BackdropProps={{
+        sx: { bgcolor: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)" },
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
+        style={{ width: "100%", maxWidth: 560, outline: "none" }}
+      >
+        <Paper
+          sx={{
+            bgcolor: "#0D0D0D",
+            border: "1.5px solid rgba(57,255,20,0.25)",
+            borderRadius: "20px",
+            boxShadow: "0 25px 80px rgba(57,255,20,0.15)",
+            overflow: "hidden",
+          }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              px: 4,
+              py: 3,
+              borderBottom: "1px solid rgba(255,255,255,0.08)",
+              bgcolor: "rgba(57,255,20,0.03)",
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: "12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  bgcolor: "rgba(57,255,20,0.12)",
+                  color: "#39FF14",
+                }}
+              >
+                <Lock size={20} />
+              </Box>
+              <Box>
+                <Typography
+                  sx={{
+                    fontFamily: "Bebas Neue, cursive",
+                    fontSize: "1.75rem",
+                    letterSpacing: "0.12em",
+                    color: "#fff",
+                  }}
+                >
+                  SELECT PAYMENT METHOD
+                </Typography>
+                <Typography
+                  sx={{
+                    fontFamily: "Poppins, sans-serif",
+                    fontSize: "0.8rem",
+                    color: "#888",
+                  }}
+                >
+                  Choose how you&apos;d like to pay
+                </Typography>
+              </Box>
+            </Box>
+            <IconButton
+              onClick={onClose}
+              sx={{
+                color: "#A0A0A0",
+                "&:hover": { color: "#fff", bgcolor: "rgba(255,255,255,0.06)" },
+                borderRadius: "10px",
+                p: 1,
+              }}
+            >
+              <X size={20} />
+            </IconButton>
+          </Box>
+
+          <Box sx={{ p: 4 }}>
+            <FormControl sx={{ width: "100%" }}>
+              <RadioGroup
+                value={selectedMethod}
+                onChange={(e) => onSelectMethod(e.target.value as "stripe" | "paypal")}
+              >
+                <Stack spacing={2.5}>
+                  <FormControlLabel
+                    value="stripe"
+                    control={
+                      <Radio
+                        sx={{
+                          color: "rgba(57,255,20,0.4)",
+                          "&.Mui-checked": { color: "#39FF14" },
+                        }}
+                      />
+                    }
+                    sx={{
+                      m: 0,
+                      p: 3,
+                      border:
+                        selectedMethod === "stripe"
+                          ? "1.5px solid #39FF14"
+                          : "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: "16px",
+                      bgcolor:
+                        selectedMethod === "stripe"
+                          ? "rgba(57,255,20,0.05)"
+                          : "rgba(255,255,255,0.015)",
+                      transition: "all 0.2s ease",
+                      "&:hover": {
+                        borderColor:
+                          selectedMethod === "stripe"
+                            ? "#39FF14"
+                            : "rgba(57,255,20,0.3)",
+                        bgcolor: "rgba(57,255,20,0.03)",
+                      },
+                    }}
+                    label={
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 3, flex: 1 }}>
+                        <Box
+                          sx={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: "12px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            bgcolor: "rgba(105, 121, 255, 0.1)",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <CreditCard
+                            size={22}
+                            style={{ color: "#635BFF" }}
+                          />
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography
+                            sx={{
+                              fontFamily: "Poppins, sans-serif",
+                              fontWeight: 700,
+                              fontSize: "1rem",
+                              color: "#fff",
+                              mb: 0.25,
+                            }}
+                          >
+                            Credit / Debit Card
+                          </Typography>
+                          <Typography
+                            sx={{
+                              fontFamily: "Poppins, sans-serif",
+                              fontSize: "0.8rem",
+                              color: "#888",
+                            }}
+                          >
+                            Powered by Stripe. Visa, Mastercard, Amex & more.
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: "flex", gap: 1 }}>
+                          <Box
+                            sx={{
+                              width: 30,
+                              height: 20,
+                              borderRadius: 4,
+                              bgcolor: "#1A1F71",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: "#fff",
+                              fontFamily: "Bebas Neue, cursive",
+                              fontSize: "0.65rem",
+                              letterSpacing: "0.05em",
+                            }}
+                          >
+                            VISA
+                          </Box>
+                          <Box
+                            sx={{
+                              width: 30,
+                              height: 20,
+                              borderRadius: 4,
+                              bgcolor:
+                                "linear-gradient(135deg, #EB001B 0%, #F79E1B 100%)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: "#fff",
+                              fontFamily: "Bebas Neue, cursive",
+                              fontSize: "0.6rem",
+                              letterSpacing: "0.05em",
+                            }}
+                          >
+                            MC
+                          </Box>
+                          <Box
+                            sx={{
+                              width: 30,
+                              height: 20,
+                              borderRadius: 4,
+                              bgcolor: "#006FCF",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: "#fff",
+                              fontFamily: "Bebas Neue, cursive",
+                              fontSize: "0.6rem",
+                              letterSpacing: "0.05em",
+                            }}
+                          >
+                            AMEX
+                          </Box>
+                        </Box>
+                      </Box>
+                    }
+                  />
+
+                  <FormControlLabel
+                    value="paypal"
+                    control={
+                      <Radio
+                        sx={{
+                          color: "rgba(57,255,20,0.4)",
+                          "&.Mui-checked": { color: "#39FF14" },
+                        }}
+                      />
+                    }
+                    sx={{
+                      m: 0,
+                      p: 3,
+                      border:
+                        selectedMethod === "paypal"
+                          ? "1.5px solid #39FF14"
+                          : "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: "16px",
+                      bgcolor:
+                        selectedMethod === "paypal"
+                          ? "rgba(57,255,20,0.05)"
+                          : "rgba(255,255,255,0.015)",
+                      transition: "all 0.2s ease",
+                      "&:hover": {
+                        borderColor:
+                          selectedMethod === "paypal"
+                            ? "#39FF14"
+                            : "rgba(57,255,20,0.3)",
+                        bgcolor: "rgba(57,255,20,0.03)",
+                      },
+                    }}
+                    label={
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 3, flex: 1 }}>
+                        <Box
+                          sx={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: "12px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            bgcolor: "rgba(0, 112, 240, 0.1)",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Box
+                            component="span"
+                            sx={{
+                              fontFamily: "Arial, sans-serif",
+                              fontWeight: 900,
+                              fontSize: "0.95rem",
+                              background:
+                                "linear-gradient(180deg, #009cde 0%, #003087 100%)",
+                              WebkitBackgroundClip: "text",
+                              WebkitTextFillColor: "transparent",
+                              backgroundClip: "text",
+                              letterSpacing: "-0.03em",
+                            }}
+                          >
+                            P
+                          </Box>
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography
+                            sx={{
+                              fontFamily: "Poppins, sans-serif",
+                              fontWeight: 700,
+                              fontSize: "1rem",
+                              color: "#fff",
+                              mb: 0.25,
+                            }}
+                          >
+                            PayPal
+                          </Typography>
+                          <Typography
+                            sx={{
+                              fontFamily: "Poppins, sans-serif",
+                              fontSize: "0.8rem",
+                              color: "#888",
+                            }}
+                          >
+                            Pay with your PayPal balance, linked card, or bank.
+                          </Typography>
+                        </Box>
+                        <Typography
+                          sx={{
+                            fontFamily: "Arial, sans-serif",
+                            fontWeight: 900,
+                            fontSize: "1rem",
+                            background:
+                              "linear-gradient(180deg, #009cde 0%, #003087 100%)",
+                            WebkitBackgroundClip: "text",
+                            WebkitTextFillColor: "transparent",
+                            backgroundClip: "text",
+                            letterSpacing: "-0.02em",
+                          }}
+                        >
+                          PayPal
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                </Stack>
+              </RadioGroup>
+            </FormControl>
+
+            {error && (
+              <Alert
+                severity="error"
+                icon={<AlertTriangle size={18} />}
+                sx={{
+                  mt: 3,
+                  borderRadius: "14px",
+                  fontFamily: "Poppins, sans-serif",
+                  bgcolor: "rgba(255,71,87,0.06)",
+                  color: "#fff",
+                  border: "1px solid rgba(255,71,87,0.3)",
+                  "& .MuiAlert-icon": { color: "#ff4757" },
+                }}
+              >
+                {error}
+              </Alert>
+            )}
+
+            <Box sx={{ mt: 4 }}>
+              {selectedMethod === "stripe" ? (
+                <Button
+                  fullWidth
+                  variant="contained"
+                  disabled={isStripeLoading}
+                  onClick={onConfirm}
+                  startIcon={!isStripeLoading ? <Lock size={16} /> : null}
+                  sx={{
+                    bgcolor: "#39FF14",
+                    color: "#000",
+                    fontFamily: "Poppins, sans-serif",
+                    fontWeight: 700,
+                    py: 2,
+                    fontSize: "1rem",
+                    borderRadius: "14px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    boxShadow: "0 0 24px rgba(57,255,20,0.25)",
+                    "&:hover": {
+                      bgcolor: "#32e012",
+                      boxShadow: "0 0 34px rgba(57,255,20,0.4)",
+                    },
+                    "&:disabled": {
+                      bgcolor: "rgba(57,255,20,0.25)",
+                      color: "#050505",
+                    },
+                  }}
+                >
+                  {isStripeLoading ? (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.25,
+                      }}
+                    >
+                      <Loader2
+                        size={18}
+                        style={{
+                          animation: "spin 1s linear infinite",
+                        }}
+                      />
+                      <span>Redirecting to Stripe...</span>
+                    </Box>
+                  ) : (
+                    "Pay Securely with Card"
+                  )}
+                </Button>
+              ) : (
+                <PayPalScriptProvider
+                  options={{
+                    clientId: paypalClientId,
+                    currency: "USD",
+                    intent: "capture",
+                    "enable-funding": "paylater,venmo,card",
+                    "disable-funding": "",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      border: "1px solid rgba(0,112,240,0.25)",
+                      borderRadius: "14px",
+                      p: 1.5,
+                      bgcolor: "rgba(0,112,240,0.03)",
+                    }}
+                  >
+                    <PayPalButtons
+                      style={{
+                        shape: "rect",
+                        color: "gold",
+                        layout: "vertical",
+                        label: "pay",
+                        tagline: false,
+                        height: 48,
+                      }}
+                      createOrder={createPayPalOrder}
+                      onApprove={onApprovePayPal}
+                      onError={onErrorPayPal}
+                      onCancel={onCancelPayPal}
+                      forceReRender={paypalForceReRender}
+                    />
+                  </Box>
+                </PayPalScriptProvider>
+              )}
+            </Box>
+
+            <Box
+              sx={{
+                mt: 3,
+                pt: 2.5,
+                borderTop: "1px solid rgba(255,255,255,0.06)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 1,
+              }}
+            >
+              <Lock size={14} style={{ color: "#39FF14" }} />
+              <Typography
+                sx={{
+                  fontFamily: "Poppins, sans-serif",
+                  fontSize: "0.75rem",
+                  color: "#888",
+                }}
+              >
+                Your payment is secured with 256-bit SSL encryption. We never store your card details.
+              </Typography>
+            </Box>
+          </Box>
+        </Paper>
+      </motion.div>
+    </Modal>
+  );
+}
 
 export default function CartPage() {
   const router = useRouter();
@@ -37,6 +556,11 @@ export default function CartPage() {
   const [profile, setProfile] = useState<AuthUserProfile | null>(null);
   const [authLoaded, setAuthLoaded] = useState(false);
   const [error, setError] = useState<string>("");
+
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<"stripe" | "paypal">("stripe");
+  const [stripeLoading, setStripeLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState<string>("");
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (currentUser) => {
@@ -90,8 +614,9 @@ export default function CartPage() {
     return () => unsub();
   }, []);
 
-  const handleCheckout = async () => {
+  const openPaymentModal = () => {
     setError("");
+    setPaymentError("");
     if (!user) {
       setError("Please sign in before checking out.");
       router.push(`/login?next=${encodeURIComponent("/cart")}`);
@@ -101,13 +626,24 @@ export default function CartPage() {
       setError("Your cart is empty.");
       return;
     }
+    setPaymentModalOpen(true);
+  };
 
+  const closePaymentModal = () => {
+    setPaymentModalOpen(false);
+    setPaymentError("");
+    setStripeLoading(false);
+  };
+
+  const handleStripeCheckout = async () => {
+    setPaymentError("");
     try {
-      setIsLoading(true);
+      setStripeLoading(true);
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        setError("Your session has expired. Please sign in again.");
-        setIsLoading(false);
+        setPaymentError("Your session has expired. Please sign in again.");
+        setStripeLoading(false);
+        closePaymentModal();
         router.push(`/login?next=${encodeURIComponent("/cart")}`);
         return;
       }
@@ -116,15 +652,17 @@ export default function CartPage() {
       try {
         idToken = await currentUser.getIdToken(true);
       } catch (tokenErr) {
-        console.error("[checkout] Failed to refresh ID token", tokenErr);
+        console.error("[checkout-stripe] Failed to refresh ID token", tokenErr);
       }
       if (!idToken) {
-        setError("Your session has expired. Please sign in again.");
-        setIsLoading(false);
+        setPaymentError("Your session has expired. Please sign in again.");
+        setStripeLoading(false);
+        closePaymentModal();
         router.push(`/login?next=${encodeURIComponent("/cart")}`);
         return;
       }
 
+      const fallbackEmail = currentUser.email || user?.email || "";
       const response = await fetch("/api/checkout", {
         method: "POST",
         headers: {
@@ -133,15 +671,18 @@ export default function CartPage() {
         },
         body: JSON.stringify({
           cartItems: items,
-          customerName: profile ? [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim() || user.email : user.email,
-          customerEmail: profile?.email || user.email || "",
+          customerName: profile
+            ? [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim() ||
+              fallbackEmail
+            : fallbackEmail,
+          customerEmail: profile?.email || fallbackEmail,
           customerPhone: profile?.phone || "",
         }),
       });
 
       if (!response.ok) {
         const errText = await response.text();
-        let parsedError = "Could not start checkout. Please try again.";
+        let parsedError = "Could not start Stripe checkout. Please try again.";
         try {
           const parsed = JSON.parse(errText);
           parsedError = parsed.error || parsedError;
@@ -152,13 +693,15 @@ export default function CartPage() {
         if (response.status === 401) {
           const stillLoggedIn = !!auth.currentUser;
           if (stillLoggedIn) {
-            setError(
+            setPaymentError(
               parsedError +
                 " If this continues, please sign out then sign in again."
             );
           } else {
+            closePaymentModal();
             router.push(`/login?next=${encodeURIComponent("/cart")}`);
           }
+          setStripeLoading(false);
           return;
         }
         throw new Error(parsedError);
@@ -173,22 +716,18 @@ export default function CartPage() {
         throw new Error("Window not available for navigation.");
       }
 
-      // Schedule cart clear AS SOON AS the page begins unloading (navigation to
-      // Stripe has started). If the user clicks Back before the page actually
-      // unloads (or cancels via Stripe's UI and the tab survives), the cart
-      // stays populated for a retry.
       const clearOnLeave = () => {
         try {
           void clearCart();
         } catch (clearErr) {
-          console.warn("[checkout] beforeunload clearCart failed", clearErr);
+          console.warn("[checkout-stripe] beforeunload clearCart failed", clearErr);
         }
       };
-      window.addEventListener("beforeunload", clearOnLeave, { once: true, passive: true });
+      window.addEventListener("beforeunload", clearOnLeave, {
+        once: true,
+        passive: true,
+      });
 
-      // Synchronous navigate first via location.assign (preferred) then href.
-      // We also schedule a fallback clear after a short delay, in case the
-      // browser suppresses beforeunload for cross-site navigations.
       const fallbackClearTimer = window.setTimeout(() => {
         clearOnLeave();
       }, 1200);
@@ -198,22 +737,163 @@ export default function CartPage() {
       } catch (navErr) {
         window.clearTimeout(fallbackClearTimer);
         window.removeEventListener("beforeunload", clearOnLeave);
-        console.warn("[checkout] window.location.assign failed; falling back to href", navErr);
+        console.warn(
+          "[checkout-stripe] window.location.assign failed; falling back to href",
+          navErr
+        );
         try {
           window.location.href = url;
         } catch (hrefErr) {
-          console.error("[checkout] href navigation failed too", hrefErr);
           window.clearTimeout(fallbackClearTimer);
           window.removeEventListener("beforeunload", clearOnLeave);
-          throw new Error("Could not navigate to Stripe checkout. Please try again.");
+          console.error("[checkout-stripe] href navigation failed too", hrefErr);
+          throw new Error(
+            "Could not navigate to Stripe checkout. Please try again."
+          );
         }
       }
     } catch (err: any) {
-      console.error("Error during checkout:", err);
-      setError(err?.message || "Failed to start checkout. Please try again.");
-      setIsLoading(false);
+      console.error("Error during Stripe checkout:", err);
+      setPaymentError(err?.message || "Failed to start Stripe checkout. Please try again.");
+      setStripeLoading(false);
     }
   };
+
+  const createPayPalOrder = async (): Promise<string> => {
+    setPaymentError("");
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setPaymentError("Your session has expired. Please sign in again.");
+      closePaymentModal();
+      router.push(`/login?next=${encodeURIComponent("/cart")}`);
+      throw new Error("Not authenticated");
+    }
+
+    let idToken: string | undefined;
+    try {
+      idToken = await currentUser.getIdToken(true);
+    } catch (tokenErr) {
+      console.error("[paypal-create] Failed to refresh ID token", tokenErr);
+    }
+    if (!idToken) {
+      setPaymentError("Your session has expired. Please sign in again.");
+      closePaymentModal();
+      router.push(`/login?next=${encodeURIComponent("/cart")}`);
+      throw new Error("No ID token");
+    }
+
+    const fallbackEmail = currentUser.email || user?.email || "";
+    const response = await fetch("/api/paypal/create-order", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({
+        cartItems: items,
+        customerName: profile
+          ? [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim() ||
+            fallbackEmail
+          : fallbackEmail,
+        customerEmail: profile?.email || fallbackEmail,
+        customerPhone: profile?.phone || "",
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      let parsedError = "Could not start PayPal checkout. Please try again.";
+      try {
+        const parsed = JSON.parse(errText);
+        parsedError = parsed.error || parsedError;
+      } catch {
+        /* ignore */
+      }
+
+      if (response.status === 401) {
+        closePaymentModal();
+        router.push(`/login?next=${encodeURIComponent("/cart")}`);
+      }
+      setPaymentError(parsedError);
+      throw new Error(parsedError);
+    }
+
+    const data = await response.json();
+    if (!data.orderId) {
+      setPaymentError("PayPal did not return an order ID. Please try again.");
+      throw new Error("No orderId");
+    }
+    return data.orderId;
+  };
+
+  const onApprovePayPal = async (data: { orderID: string }): Promise<void> => {
+    try {
+      const response = await fetch("/api/paypal/capture-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ orderId: data.orderID }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        let parsedError = "Payment could not be confirmed. Please try again.";
+        try {
+          const parsed = JSON.parse(errText);
+          parsedError = parsed.error || parsedError;
+        } catch {
+          /* ignore */
+        }
+        setPaymentError(parsedError);
+        throw new Error(parsedError);
+      }
+
+      const result = await response.json();
+      const orderNumber: string = result.orderNumber || "";
+
+      try {
+        void clearCart();
+      } catch (clearErr) {
+        console.warn("[paypal-approve] clearCart failed", clearErr);
+      }
+
+      closePaymentModal();
+
+      if (orderNumber) {
+        router.push(
+          `/dashboard/orders?checkout_success=true&order=${encodeURIComponent(orderNumber)}`
+        );
+      } else {
+        router.push("/dashboard/orders?checkout_success=true");
+      }
+    } catch (err: any) {
+      console.error("PayPal capture error:", err);
+      if (!paymentError) {
+        setPaymentError(
+          err?.message ||
+            "There was an error confirming your PayPal payment. Please check your PayPal account for the charge status."
+        );
+      }
+      throw err;
+    }
+  };
+
+  const onErrorPayPal = useCallback(
+    (err: any) => {
+      console.error("PayPal buttons error:", err);
+      setPaymentError(
+        "Something went wrong with PayPal. Please try again or select another payment method."
+      );
+    },
+    []
+  );
+
+  const onCancelPayPal = useCallback(() => {
+    setPaymentError("");
+  }, []);
+
+  const paypalForceReRender = [items.length, getTotalPrice()];
 
   return (
     <>
@@ -637,11 +1317,9 @@ export default function CartPage() {
                       <Button
                         fullWidth
                         variant="contained"
-                        disabled={isLoading || !authLoaded || !user}
-                        onClick={handleCheckout}
-                        startIcon={
-                          !isLoading ? <Lock size={16} /> : null
-                        }
+                        disabled={!authLoaded || !user}
+                        onClick={openPaymentModal}
+                        startIcon={<Lock size={16} />}
                         sx={{
                           bgcolor: "#39FF14",
                           color: "#000",
@@ -650,20 +1328,20 @@ export default function CartPage() {
                           py: 2,
                           fontSize: "1rem",
                           textTransform: "uppercase",
-                          "&:hover": { bgcolor: "#2dd610" },
+                          boxShadow: "0 0 28px rgba(57,255,20,0.3)",
+                          "&:hover": {
+                            bgcolor: "#2dd610",
+                            boxShadow: "0 0 42px rgba(57,255,20,0.5)",
+                          },
                           "&:disabled": {
                             bgcolor: "rgba(57,255,20,0.25)",
                             color: "#050505",
                             opacity: 0.8,
+                            boxShadow: "none",
                           },
                         }}
                       >
-                        {isLoading ? (
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                            <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />
-                            <span>Processing...</span>
-                          </Box>
-                        ) : !authLoaded ? (
+                        {!authLoaded ? (
                           "Verifying..."
                         ) : !user ? (
                           "Sign In To Checkout"
@@ -676,6 +1354,22 @@ export default function CartPage() {
                 </Grid>
               </Grid>
             )}
+
+            <PaymentSelectionModal
+              open={paymentModalOpen}
+              onClose={closePaymentModal}
+              selectedMethod={selectedPayment}
+              onSelectMethod={setSelectedPayment}
+              onConfirm={handleStripeCheckout}
+              isStripeLoading={stripeLoading}
+              error={paymentError}
+              paypalClientId={PAYPAL_CLIENT_ID}
+              createPayPalOrder={createPayPalOrder}
+              onApprovePayPal={onApprovePayPal}
+              onErrorPayPal={onErrorPayPal}
+              onCancelPayPal={onCancelPayPal}
+              paypalForceReRender={paypalForceReRender}
+            />
           </motion.div>
         </Container>
       </Box>
