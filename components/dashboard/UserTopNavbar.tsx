@@ -17,7 +17,6 @@ import {
   Heart,
   ShoppingCart,
   User,
-  Settings,
   LogOut,
   Search,
   ChevronDown,
@@ -194,10 +193,6 @@ export default function UserTopNavbar() {
             <MenuItem component={Link} href="/dashboard/orders" onClick={handleClose}>
               <User size={18} style={{ marginRight: 8 }} />
               My Orders
-            </MenuItem>
-            <MenuItem component={Link} href="/dashboard/settings" onClick={handleClose}>
-              <Settings size={18} style={{ marginRight: 8 }} />
-              Settings
             </MenuItem>
             <MenuItem 
               onClick={() => {
