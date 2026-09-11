@@ -14,7 +14,34 @@ export function getPaypalBaseUrl(): string {
   return PAYPAL_BASE_URLS[env] || PAYPAL_BASE_URLS.sandbox;
 }
 
-let cachedAccessToken: { token: string; expiresAt: number } | null = null;
+let cachedAccessToken: {
+  clientId: string;
+  token: string;
+  expiresAt: number;
+} | null = null;
+
+function parsePaypalError(errText: string, fallback: string): { name: string; message: string; debugId: string; details: string } {
+  try {
+    const parsed = JSON.parse(errText);
+    const name = typeof parsed.name === "string" ? parsed.name : "";
+    const message = typeof parsed.message === "string" ? parsed.message : fallback;
+    const debugId = typeof parsed.debug_id === "string" ? parsed.debug_id : "";
+    const detailsArr = Array.isArray(parsed.details) ? parsed.details : [];
+    const details = detailsArr
+      .map((d: any) => {
+        const parts: string[] = [];
+        if (d?.field) parts.push(`field=${d.field}`);
+        if (d?.issue) parts.push(`issue=${d.issue}`);
+        if (d?.description) parts.push(d.description);
+        return parts.join(" ");
+      })
+      .filter(Boolean)
+      .join(" | ");
+    return { name, message, debugId, details };
+  } catch {
+    return { name: "", message: fallback, debugId: "", details: "" };
+  }
+}
 
 export async function getPaypalAccessToken(): Promise<string> {
   const clientId = process.env.PAYPAL_CLIENT_ID;
@@ -25,7 +52,11 @@ export async function getPaypalAccessToken(): Promise<string> {
   }
 
   const now = Date.now();
-  if (cachedAccessToken && cachedAccessToken.expiresAt > now + 60_000) {
+  if (
+    cachedAccessToken &&
+    cachedAccessToken.clientId === clientId &&
+    cachedAccessToken.expiresAt > now + 60_000
+  ) {
     return cachedAccessToken.token;
   }
 
@@ -43,8 +74,15 @@ export async function getPaypalAccessToken(): Promise<string> {
 
   if (!response.ok) {
     const errText = await response.text();
-    console.error("[paypal] Failed to get access token:", response.status, errText);
-    throw new Error("Failed to authenticate with PayPal.");
+    const parsed = parsePaypalError(errText, "Authentication failed");
+    const statusLabel = `HTTP ${response.status}`;
+    const debugLabel = parsed.debugId ? ` (debug_id: ${parsed.debugId})` : "";
+    const detailLabel = parsed.details ? ` — ${parsed.details}` : "";
+    const nameLabel = parsed.name ? ` [${parsed.name}]` : "";
+    const composed = `PayPal auth failed${nameLabel}${debugLabel}: ${statusLabel} ${parsed.message}${detailLabel}`;
+    console.error("[paypal] Failed to get access token:", composed);
+    console.error("[paypal] raw error body:", errText);
+    throw new Error(composed);
   }
 
   const data = await response.json();
@@ -52,6 +90,7 @@ export async function getPaypalAccessToken(): Promise<string> {
   const expiresIn: number = Number(data.expires_in) || 32400;
 
   cachedAccessToken = {
+    clientId,
     token: accessToken,
     expiresAt: now + expiresIn * 1000,
   };
@@ -64,16 +103,6 @@ export interface CreatePaypalOrderInput {
   items: OrderItem[];
   total: number;
   currency?: string;
-  customerId: string;
-  customerEmail: string;
-  customerName: string;
-  customerPhone?: string;
-  itemIds: string;
-  itemQtys: string;
-  itemPrices: string;
-  itemSizes: string;
-  itemNames: string;
-  itemCount: string;
 }
 
 export async function createPaypalOrder(input: CreatePaypalOrderInput): Promise<{
@@ -92,21 +121,8 @@ export async function createPaypalOrder(input: CreatePaypalOrderInput): Promise<
       {
         reference_id: input.orderNumber,
         description: `Lamah Order ${input.orderNumber}`,
-        custom_id: JSON.stringify({
-          orderNumber: input.orderNumber,
-          customerId: input.customerId,
-          customerEmail: input.customerEmail,
-          customerName: input.customerName,
-          customerPhone: input.customerPhone || "",
-          itemIds: input.itemIds,
-          itemQtys: input.itemQtys,
-          itemPrices: input.itemPrices,
-          itemSizes: input.itemSizes,
-          itemNames: input.itemNames,
-          itemCount: input.itemCount,
-          total: String(input.total),
-          currency,
-        }),
+        custom_id: input.orderNumber,
+        invoice_id: input.orderNumber,
         amount: {
           currency_code: currency,
           value: String(unitAmount),
@@ -135,8 +151,15 @@ export async function createPaypalOrder(input: CreatePaypalOrderInput): Promise<
 
   if (!response.ok) {
     const errText = await response.text();
-    console.error("[paypal] Failed to create order:", response.status, errText);
-    throw new Error("Failed to create PayPal order. Please try again.");
+    const parsed = parsePaypalError(errText, "Order creation rejected by PayPal");
+    const statusLabel = `HTTP ${response.status}`;
+    const debugLabel = parsed.debugId ? ` (debug_id: ${parsed.debugId})` : "";
+    const detailLabel = parsed.details ? ` — ${parsed.details}` : "";
+    const nameLabel = parsed.name ? ` [${parsed.name}]` : "";
+    const composed = `PayPal order creation failed${nameLabel}${debugLabel}: ${statusLabel} ${parsed.message}${detailLabel}`;
+    console.error("[paypal] Failed to create order:", composed);
+    console.error("[paypal] raw error body:", errText);
+    throw new Error(composed);
   }
 
   return await response.json();
@@ -158,8 +181,15 @@ export async function capturePaypalOrder(orderId: string): Promise<Record<string
 
   if (!response.ok) {
     const errText = await response.text();
-    console.error("[paypal] Failed to capture order:", response.status, errText);
-    throw new Error("Failed to capture PayPal payment. Please try again.");
+    const parsed = parsePaypalError(errText, "Payment capture rejected by PayPal");
+    const statusLabel = `HTTP ${response.status}`;
+    const debugLabel = parsed.debugId ? ` (debug_id: ${parsed.debugId})` : "";
+    const detailLabel = parsed.details ? ` — ${parsed.details}` : "";
+    const nameLabel = parsed.name ? ` [${parsed.name}]` : "";
+    const composed = `PayPal capture failed${nameLabel}${debugLabel}: ${statusLabel} ${parsed.message}${detailLabel}`;
+    console.error("[paypal] Failed to capture order:", composed);
+    console.error("[paypal] raw error body:", errText);
+    throw new Error(composed);
   }
 
   return await response.json();
@@ -179,8 +209,15 @@ export async function getPaypalOrderDetails(orderId: string): Promise<Record<str
 
   if (!response.ok) {
     const errText = await response.text();
-    console.error("[paypal] Failed to get order details:", response.status, errText);
-    throw new Error("Failed to retrieve PayPal order details.");
+    const parsed = parsePaypalError(errText, "Could not retrieve order from PayPal");
+    const statusLabel = `HTTP ${response.status}`;
+    const debugLabel = parsed.debugId ? ` (debug_id: ${parsed.debugId})` : "";
+    const detailLabel = parsed.details ? ` — ${parsed.details}` : "";
+    const nameLabel = parsed.name ? ` [${parsed.name}]` : "";
+    const composed = `PayPal order lookup failed${nameLabel}${debugLabel}: ${statusLabel} ${parsed.message}${detailLabel}`;
+    console.error("[paypal] Failed to get order details:", composed);
+    console.error("[paypal] raw error body:", errText);
+    throw new Error(composed);
   }
 
   return await response.json();

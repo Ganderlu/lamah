@@ -92,25 +92,81 @@ export async function POST(request: Request) {
     // 2. Get full order details (includes payer, shipping, metadata)
     const orderDetails = await getPaypalOrderDetails(orderId);
 
-    // 3. Extract custom metadata from purchase_units[0].custom_id
+    // 3. Extract custom metadata from:
+    //    a) Firestore pending_orders/{orderNumber} (preferred, full metadata)
+    //    b) Fallback: JSON.parse purchase_units[0].custom_id (legacy compat)
+    //    c) Fallback: orderNumber from reference_id
     const orderDetailsAny = orderDetails as unknown as Record<string, unknown>;
     const purchaseUnits = Array.isArray(orderDetailsAny.purchase_units)
       ? (orderDetailsAny.purchase_units as Array<Record<string, unknown>>)
       : [];
     const purchaseUnit = purchaseUnits[0];
+
     let customMeta: Record<string, string> = {};
-    try {
-      if (purchaseUnit && typeof purchaseUnit.custom_id === "string") {
-        customMeta = JSON.parse(purchaseUnit.custom_id) as Record<string, string>;
+    let resolvedOrderNumber: string = "";
+    let pendingFullItems: OrderItem[] | null = null;
+
+    const rawCustomId =
+      purchaseUnit && typeof purchaseUnit.custom_id === "string"
+        ? purchaseUnit.custom_id
+        : "";
+
+    const referenceId =
+      typeof purchaseUnit?.reference_id === "string" ? purchaseUnit.reference_id : "";
+
+    // Try Firestore first using custom_id (orderNumber) as key
+    if (rawCustomId) {
+      try {
+        const { getAdminFirestore } = await import("@/firebase/admin");
+        const adminDb = getAdminFirestore();
+        const pendingSnap = await adminDb
+          .collection("pending_orders")
+          .doc(rawCustomId)
+          .get();
+        if (pendingSnap.exists) {
+          const pendingData = pendingSnap.data() as Record<string, unknown>;
+          customMeta = {};
+          for (const [k, v] of Object.entries(pendingData)) {
+            if (v == null) continue;
+            if (typeof v === "string") {
+              customMeta[k] = v;
+            }
+          }
+          resolvedOrderNumber =
+            (customMeta.orderNumber as string) || rawCustomId || referenceId;
+
+          if (Array.isArray(pendingData.items)) {
+            pendingFullItems = (pendingData.items as OrderItem[]).filter(Boolean);
+          }
+        }
+      } catch (lookupErr) {
+        console.warn(
+          "[paypal-capture-order] Could not look up pending_orders from Firestore:",
+          lookupErr
+        );
       }
-    } catch {
-      console.warn("[paypal-capture-order] Could not parse custom_id JSON");
     }
 
-    const orderNumber: string =
-      (customMeta.orderNumber as string) ||
-      (typeof purchaseUnit?.reference_id === "string" ? purchaseUnit.reference_id : "") ||
-      `LAMAH-${orderId.slice(-8).toUpperCase()}`;
+    // Legacy fallback: try to parse custom_id as JSON (older orders)
+    if (!resolvedOrderNumber && rawCustomId) {
+      try {
+        const parsed = JSON.parse(rawCustomId) as Record<string, string>;
+        if (parsed && typeof parsed === "object") {
+          customMeta = parsed;
+          resolvedOrderNumber = parsed.orderNumber || referenceId;
+        }
+      } catch {
+        // Not JSON — it's just the orderNumber string (new behavior)
+        resolvedOrderNumber = rawCustomId;
+      }
+    }
+
+    if (!resolvedOrderNumber) {
+      resolvedOrderNumber =
+        referenceId || `LAMAH-${orderId.slice(-8).toUpperCase()}`;
+    }
+
+    const orderNumber: string = resolvedOrderNumber;
 
     const resolvedCustomerId: string = (customMeta.customerId as string) || "";
     const payerObj =
@@ -134,8 +190,12 @@ export async function POST(request: Request) {
       "LAMAH Customer";
     const customerPhoneResolved: string = (customMeta.customerPhone as string) || "";
 
-    // 4. Get line items from compact metadata
-    const items = buildItemsFromCompactMeta(customMeta) || [];
+    // 4. Get line items — prefer full items from pending_orders (includes images)
+    //    Fall back to reconstructing items from compact CSV metadata
+    const items: OrderItem[] =
+      pendingFullItems && pendingFullItems.length > 0
+        ? pendingFullItems
+        : buildItemsFromCompactMeta(customMeta) || [];
 
     const finalProducts: OrderItem[] = items.map((it) => ({
       id: it.id,

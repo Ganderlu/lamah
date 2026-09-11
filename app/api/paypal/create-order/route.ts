@@ -115,12 +115,10 @@ export async function POST(request: Request) {
       0
     );
 
-    // 4. Create PayPal order
-    const order = await createPaypalOrder({
+    // 4. Persist compact order metadata to Firestore BEFORE calling PayPal
+    //    (PayPal's custom_id is limited to 127 chars, so we store metadata in our DB)
+    const compactMeta = {
       orderNumber,
-      items: normalizedItems,
-      total: Number(totalAmount.toFixed(2)),
-      currency: "USD",
       customerId: customer.uid,
       customerEmail: customerEmailFromBody,
       customerName: truncateForMeta(customerNameFromBody, 200),
@@ -131,6 +129,32 @@ export async function POST(request: Request) {
       itemSizes: truncateForMeta(itemSizes, 500),
       itemNames: truncateForMeta(itemNames, 500),
       itemCount: String(normalizedItems.length),
+      total: String(Number(totalAmount.toFixed(2))),
+      currency: "USD",
+      items: normalizedItems,
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      const { getAdminFirestore } = await import("@/firebase/admin");
+      const adminDb = getAdminFirestore();
+      await adminDb
+        .collection("pending_orders")
+        .doc(orderNumber)
+        .set(compactMeta, { merge: true });
+    } catch (dbErr) {
+      console.warn(
+        "[paypal-create-order] Failed to save pending metadata — continuing anyway:",
+        dbErr
+      );
+    }
+
+    // 5. Create PayPal order (custom_id = orderNumber only)
+    const order = await createPaypalOrder({
+      orderNumber,
+      items: normalizedItems,
+      total: Number(totalAmount.toFixed(2)),
+      currency: "USD",
     });
 
     return NextResponse.json({
