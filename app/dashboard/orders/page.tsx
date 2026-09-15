@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import OrderCard from "@/components/dashboard/orders/OrderCard";
@@ -87,9 +87,19 @@ export default function OrdersPage() {
     }
   }, [searchParams, clearCart]);
 
-  // Auth required — redirect to /login if not signed in
+  // Auth required — redirect to /login if not signed in.
+  // Uses onSnapshot (realtime) so orders appear as soon as the payment
+  // webhook (Stripe / PayPal) writes the order document — no race condition
+  // between the payment-provider success redirect and server-side fulfillment.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let firestoreUnsub: (() => void) | null = null;
+
+    const authUnsub = onAuthStateChanged(auth, (user) => {
+      if (firestoreUnsub) {
+        firestoreUnsub();
+        firestoreUnsub = null;
+      }
+
       if (!user) {
         setOrders([]);
         setLoading(false);
@@ -100,107 +110,122 @@ export default function OrdersPage() {
 
       setLoading(true);
 
-      try {
-        const ordersQuery = query(
-          collection(db, "orders"),
-          where("customerId", "==", user.uid)
-        );
-        const snapshot = await getDocs(ordersQuery);
+      const ordersQuery = query(
+        collection(db, "orders"),
+        where("customerId", "==", user.uid)
+      );
 
-        const nextOrders: CustomerOrder[] = snapshot.docs.map((docSnapshot) => {
-          const data = docSnapshot.data();
+      firestoreUnsub = onSnapshot(
+        ordersQuery,
+        (snapshot) => {
+          const nextOrders: CustomerOrder[] = snapshot.docs.map(
+            (docSnapshot) => {
+              const data = docSnapshot.data();
 
-          const productsOrItems = Array.isArray(data.products)
-            ? data.products
-            : Array.isArray(data.items)
-            ? data.items
-            : [];
+              const productsOrItems = Array.isArray(data.products)
+                ? data.products
+                : Array.isArray(data.items)
+                ? data.items
+                : [];
 
-          const products = productsOrItems.map((item: any) => ({
-            id: String(
-              item.id ||
-                item.productId ||
-                `${docSnapshot.id}-${Math.random().toString(36).slice(2, 8)}`
-            ),
-            productId: String(item.productId || item.id || ""),
-            name: String(item.name || "Lamah Product"),
-            image: String(item.image || "/images/lamahhlogo.png"),
-            size: item.size ? String(item.size) : undefined,
-            color: item.color ? String(item.color) : undefined,
-            quantity: Number(item.quantity || 1),
-            price: Number(item.price || 0),
-          }));
+              const products = productsOrItems.map((item: any) => ({
+                id: String(
+                  item.id ||
+                    item.productId ||
+                    `${docSnapshot.id}-${Math
+                      .random()
+                      .toString(36)
+                      .slice(2, 8)}`
+                ),
+                productId: String(item.productId || item.id || ""),
+                name: String(item.name || "Lamah Product"),
+                image: String(item.image || "/images/lamahhlogo.png"),
+                size: item.size ? String(item.size) : undefined,
+                color: item.color ? String(item.color) : undefined,
+                quantity: Number(item.quantity || 1),
+                price: Number(item.price || 0),
+              }));
 
-          return {
-            id: docSnapshot.id,
-            orderNumber:
-              data.orderNumber || data.orderId || `#LMH-${Date.now()}`,
-            customerId: data.customerId || data.userId || user.uid,
-            customerName: data.customerName || user.displayName || "Customer",
-            customerEmail: data.customerEmail || user.email || "",
-            customerPhone: data.customerPhone || "",
-            customerAvatar: data.customerAvatar || user.photoURL || "",
-            products,
-            subtotal: Number(data.subtotal || 0),
-            shippingFee: Number(data.shippingFee || 0),
-            discount: Number(data.discount || 0),
-            tax: Number(data.tax || 0),
-            total: Number(data.total || 0),
-            paymentMethod: (data.paymentMethod as PaymentMethod) || "Stripe",
-            paymentStatus: (data.paymentStatus as PaymentStatus) || "Pending",
-            transactionId: data.transactionId || "",
-            deliveryStatus: (data.deliveryStatus ||
-              data.shippingStatus ||
-              data.status ||
-              "Pending") as OrderStatus,
-            trackingNumber: data.trackingNumber || "",
-            courier: data.courier || "",
-            estimatedDelivery: data.estimatedDelivery
-              ? toISOString(data.estimatedDelivery)
-              : "",
-            shippingAddress: data.shippingAddress || {
-              street: "",
-              city: "",
-              state: "",
-              postalCode: "",
-              country: "",
-            },
-            billingAddress: data.billingAddress || {
-              street: "",
-              city: "",
-              state: "",
-              postalCode: "",
-              country: "",
-            },
-            status: (data.status ||
-              data.deliveryStatus ||
-              data.shippingStatus ||
-              "Pending") as OrderStatus,
-            adminNotes: data.adminNotes || [],
-            timeline: data.timeline || [],
-            createdAt: toISOString(data.createdAt),
-            updatedAt: toISOString(data.updatedAt),
-          };
-        });
+              return {
+                id: docSnapshot.id,
+                orderNumber:
+                  data.orderNumber || data.orderId || `#LMH-${Date.now()}`,
+                customerId: data.customerId || data.userId || user.uid,
+                customerName:
+                  data.customerName || user.displayName || "Customer",
+                customerEmail: data.customerEmail || user.email || "",
+                customerPhone: data.customerPhone || "",
+                customerAvatar: data.customerAvatar || user.photoURL || "",
+                products,
+                subtotal: Number(data.subtotal || 0),
+                shippingFee: Number(data.shippingFee || 0),
+                discount: Number(data.discount || 0),
+                tax: Number(data.tax || 0),
+                total: Number(data.total || 0),
+                paymentMethod:
+                  (data.paymentMethod as PaymentMethod) || "Stripe",
+                paymentStatus:
+                  (data.paymentStatus as PaymentStatus) || "Pending",
+                transactionId: data.transactionId || "",
+                deliveryStatus: (data.deliveryStatus ||
+                  data.shippingStatus ||
+                  data.status ||
+                  "Pending") as OrderStatus,
+                trackingNumber: data.trackingNumber || "",
+                courier: data.courier || "",
+                estimatedDelivery: data.estimatedDelivery
+                  ? toISOString(data.estimatedDelivery)
+                  : "",
+                shippingAddress: data.shippingAddress || {
+                  street: "",
+                  city: "",
+                  state: "",
+                  postalCode: "",
+                  country: "",
+                },
+                billingAddress: data.billingAddress || {
+                  street: "",
+                  city: "",
+                  state: "",
+                  postalCode: "",
+                  country: "",
+                },
+                status: (data.status ||
+                  data.deliveryStatus ||
+                  data.shippingStatus ||
+                  "Pending") as OrderStatus,
+                adminNotes: data.adminNotes || [],
+                timeline: data.timeline || [],
+                createdAt: toISOString(data.createdAt),
+                updatedAt: toISOString(data.updatedAt),
+              };
+            }
+          );
 
-        nextOrders.sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
+          nextOrders.sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
 
-        setOrders(nextOrders);
-      } catch (error: any) {
-        setSnackbar({
-          open: true,
-          message: error?.message || "Failed to load your orders.",
-          severity: "error",
-        });
-      } finally {
-        setLoading(false);
-      }
+          setOrders(nextOrders);
+          setLoading(false);
+        },
+        (error: any) => {
+          console.error("[orders] onSnapshot error:", error);
+          setSnackbar({
+            open: true,
+            message: error?.message || "Failed to load your orders.",
+            severity: "error",
+          });
+          setLoading(false);
+        }
+      );
     });
 
-    return () => unsubscribe();
+    return () => {
+      if (firestoreUnsub) firestoreUnsub();
+      authUnsub();
+    };
   }, [router]);
 
   const totalPages = Math.max(1, Math.ceil(orders.length / PAGE_SIZE));

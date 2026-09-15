@@ -285,19 +285,67 @@ async function handleCheckoutOrderApproved(event: any) {
   }
 
   const purchaseUnit = resource.purchase_units?.[0];
+  const rawCustomId =
+    purchaseUnit && typeof purchaseUnit.custom_id === "string"
+      ? purchaseUnit.custom_id
+      : "";
+  const referenceId =
+    typeof purchaseUnit?.reference_id === "string" ? purchaseUnit.reference_id : "";
+
   let customMeta: Record<string, string> = {};
-  try {
-    if (purchaseUnit?.custom_id) {
-      customMeta = JSON.parse(purchaseUnit.custom_id);
+  let resolvedOrderNumberFromMeta: string = "";
+  let pendingFullItems: OrderItem[] | null = null;
+
+  if (rawCustomId) {
+    try {
+      const parsed = JSON.parse(rawCustomId);
+      if (parsed && typeof parsed === "object") {
+        customMeta = parsed;
+        resolvedOrderNumberFromMeta = parsed.orderNumber || referenceId || rawCustomId;
+      }
+    } catch {
+      const { getAdminFirestore } = await import("@/firebase/admin");
+      const adminDb = getAdminFirestore();
+      try {
+        const pendingSnap = await adminDb
+          .collection("pending_orders")
+          .doc(rawCustomId)
+          .get();
+        if (pendingSnap.exists) {
+          const pendingData = pendingSnap.data() as Record<string, unknown>;
+          customMeta = {};
+          for (const [k, v] of Object.entries(pendingData)) {
+            if (v == null) continue;
+            if (typeof v === "string") {
+              customMeta[k] = v;
+            }
+          }
+          resolvedOrderNumberFromMeta =
+            (customMeta.orderNumber as string) || rawCustomId || referenceId;
+          if (Array.isArray(pendingData.items)) {
+            pendingFullItems = (pendingData.items as OrderItem[]).filter(Boolean);
+          }
+        } else {
+          resolvedOrderNumberFromMeta = rawCustomId;
+        }
+      } catch (lookupErr) {
+        logWebhook("warn", "Could not look up pending_orders from Firestore", {
+          err:
+            lookupErr instanceof Error
+              ? lookupErr.message
+              : String(lookupErr),
+        });
+        resolvedOrderNumberFromMeta = rawCustomId;
+      }
     }
-  } catch {
-    logWebhook("warn", "Could not parse custom_id JSON from purchase_unit");
   }
 
-  const orderNumber: string =
-    customMeta.orderNumber ||
-    purchaseUnit?.reference_id ||
-    `LAMAH-${paypalOrderId.slice(-8).toUpperCase()}`;
+  if (!resolvedOrderNumberFromMeta) {
+    resolvedOrderNumberFromMeta =
+      referenceId || `LAMAH-${paypalOrderId.slice(-8).toUpperCase()}`;
+  }
+
+  const orderNumber: string = resolvedOrderNumberFromMeta;
 
   const resolvedCustomerId: string = customMeta.customerId || "";
   const customerEmailResolved: string =
@@ -317,7 +365,10 @@ async function handleCheckoutOrderApproved(event: any) {
     "LAMAH Customer";
   const customerPhoneResolved: string = customMeta.customerPhone || "";
 
-  const items = buildItemsFromCompactMeta(customMeta as any) || [];
+  const items =
+    pendingFullItems && pendingFullItems.length > 0
+      ? pendingFullItems
+      : buildItemsFromCompactMeta(customMeta as any) || [];
 
   const finalProducts: OrderItem[] = items.map((it) => ({
     id: it.id,
@@ -361,10 +412,12 @@ async function handleCheckoutOrderApproved(event: any) {
     },
   ];
 
-  const order: CustomerOrder = {
+  const { getAdminFirestore } = await import("@/firebase/admin");
+  const adminDb = getAdminFirestore();
+
+  const orderUpdate: Record<string, unknown> = {
     id: paypalOrderId,
     orderNumber,
-    customerId: resolvedCustomerId || "",
     customerName: customerNameResolved,
     customerEmail: customerEmailResolved,
     customerPhone: customerPhoneResolved,
@@ -388,11 +441,12 @@ async function handleCheckoutOrderApproved(event: any) {
     updatedAt: createdAtISO,
   };
 
-  const { getAdminFirestore } = await import("@/firebase/admin");
-  const adminDb = getAdminFirestore();
+  if (resolvedCustomerId) {
+    orderUpdate.customerId = resolvedCustomerId;
+  }
 
   const ordersRef = adminDb.collection("orders").doc(paypalOrderId);
-  await ordersRef.set(order, { merge: true });
+  await ordersRef.set(orderUpdate, { merge: true });
 
   if (resolvedCustomerId) {
     const customerOrdersRef = adminDb
@@ -417,6 +471,18 @@ async function handleCheckoutOrderApproved(event: any) {
         .collection("customers")
         .doc(resolvedCustomerId);
       const customerSnap = await customerSummaryRef.get();
+      const summaryUpdate: Record<string, unknown> = {
+        updatedAt: createdAtISO,
+      };
+      if (customMeta.customerName) {
+        summaryUpdate.name = customerNameResolved;
+      }
+      if (customMeta.customerEmail) {
+        summaryUpdate.email = customerEmailResolved;
+      }
+      if (customMeta.customerPhone) {
+        summaryUpdate.phone = customerPhoneResolved;
+      }
       if (!customerSnap.exists) {
         await customerSummaryRef.set(
           {
@@ -427,20 +493,12 @@ async function handleCheckoutOrderApproved(event: any) {
             totalOrders: 1,
             totalSpent: totalAmount,
             createdAt: createdAtISO,
-            updatedAt: createdAtISO,
+            ...summaryUpdate,
           },
           { merge: true }
         );
       } else {
-        await customerSummaryRef.set(
-          {
-            name: customerNameResolved,
-            email: customerEmailResolved,
-            phone: customerPhoneResolved,
-            updatedAt: createdAtISO,
-          },
-          { merge: true }
-        );
+        await customerSummaryRef.set(summaryUpdate, { merge: true });
       }
     } catch (summaryErr) {
       logWebhook(
